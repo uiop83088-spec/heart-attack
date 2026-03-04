@@ -106,16 +106,30 @@ Analyzes uploaded data and returns risk assessment
 ### GET /api/health
 Health check endpoint
 
-## Model Integration
+## Model Training
 
-To integrate actual deep learning models:
+To train custom models on your own medical imaging data:
 
-1. Train your models (CNN, RNN/LSTM)
-2. Save models in `models/` directory
-3. Update `app.py` functions:
-   - `analyze_medical_image()` - Load CNN model
-   - `analyze_ecg()` - Load RNN/LSTM model
-   - `analyze_clinical_data()` - Load classification model
+1. Navigate to the training directory:
+```bash
+cd training
+pip install -r requirements.txt
+```
+
+2. Prepare your dataset (see training/README.md for details)
+
+3. Train models:
+```bash
+python train_model.py
+```
+
+4. Models will be exported to `models/nodejs/` for integration
+
+See `training/README.md` for detailed instructions on:
+- Downloading medical imaging datasets
+- Training custom CNN models
+- Training ECG LSTM models
+- Exporting models for Node.js deployment
 
 ## Project Structure
 
