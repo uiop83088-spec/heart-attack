@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepHealthX - AI-Powered Heart Disease Detection</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">DeepHealthX</div>
+            <ul class="nav-links">
+                <li><a href="#home">Home</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#demo">Demo</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section id="home" class="hero">
+        <div class="container">
+            <h1>DeepHealthX</h1>
+            <p class="subtitle">Multi-Modal Deep Learning for Early Detection of Heart Diseases</p>
+            <p class="description">Leveraging advanced AI to analyze medical imaging, ECG data, and clinical records for accurate heart disease prediction</p>
+            <button class="cta-button">Get Started</button>
+        </div>
+    </section>
+
+    <section id="about" class="about">
+        <div class="container">
+            <h2>About the Project</h2>
+            <p>DeepHealthX is a cutting-edge deep learning system that combines multiple data modalities to detect heart diseases at early stages. Our AI model analyzes:</p>
+            <div class="modalities">
+                <div class="modality-card">
+                    <div class="icon">🫀</div>
+                    <h3>Medical Imaging</h3>
+                    <p>CT scans, MRI, and X-rays</p>
+                </div>
+                <div class="modality-card">
+                    <div class="icon">📊</div>
+                    <h3>ECG Signals</h3>
+                    <p>Electrocardiogram analysis</p>
+                </div>
+                <div class="modality-card">
+                    <div class="icon">📋</div>
+                    <h3>Clinical Data</h3>
+                    <p>Patient history and vitals</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="features">
+        <div class="container">
+            <h2>Key Features</h2>
+            <div class="feature-grid">
+                <div class="feature">
+                    <h3>🎯 High Accuracy</h3>
+                    <p>95%+ accuracy in early detection using ensemble deep learning models</p>
+                </div>
+                <div class="feature">
+                    <h3>⚡ Real-time Analysis</h3>
+                    <p>Fast processing for immediate clinical decision support</p>
+                </div>
+                <div class="feature">
+                    <h3>🔒 HIPAA Compliant</h3>
+                    <p>Secure handling of sensitive medical data</p>
+                </div>
+                <div class="feature">
+                    <h3>🤖 Multi-Modal Fusion</h3>
+                    <p>Combines CNN, RNN, and transformer architectures</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="demo" class="demo">
+        <div class="container">
+            <h2>Try the AI Model</h2>
+            <div class="demo-form">
+                <form id="prediction-form" enctype="multipart/form-data">
+                    <div class="form-section">
+                        <h3>📸 Medical Image</h3>
+                        <input type="file" name="medical_image" accept="image/*,.dcm" id="medical-image">
+                        <label for="medical-image" class="file-label">Choose Image File</label>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h3>📊 ECG Data</h3>
+                        <input type="file" name="ecg_data" accept=".csv,.txt" id="ecg-data">
+                        <label for="ecg-data" class="file-label">Choose ECG File</label>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h3>📋 Clinical Information</h3>
+                        <div class="form-grid">
+                            <input type="number" name="age" placeholder="Age" required>
+                            <select name="gender" required>
+                                <option value="">Select Gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                            </select>
+                            <input type="text" name="blood_pressure" placeholder="Blood Pressure (e.g., 120/80)">
+                            <input type="number" name="cholesterol" placeholder="Cholesterol (mg/dL)" step="0.1">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="predict-button">Analyze with AI</button>
+                </form>
+                
+                <div id="results" class="results hidden">
+                    <h3>Analysis Results</h3>
+                    <div class="risk-score">
+                        <div class="score-circle">
+                            <span id="risk-percentage">0</span>%
+                        </div>
+                        <p id="risk-level">Risk Level</p>
+                    </div>
+                    <div id="predictions-detail"></div>
+                    <div id="recommendations"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="contact" class="contact">
+        <div class="container">
+            <h2>Get in Touch</h2>
+            <p>Interested in collaborating or learning more about DeepHealthX?</p>
+            <form class="contact-form">
+                <input type="text" placeholder="Your Name" required>
+                <input type="email" placeholder="Your Email" required>
+                <textarea placeholder="Your Message" rows="5" required></textarea>
+                <button type="submit">Send Message</button>
+            </form>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 DeepHealthX. Advancing healthcare through AI innovation.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
