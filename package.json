@@ -15,9 +15,7 @@
     "cors": "^2.8.5",
     "multer": "^1.4.5-lts.1",
     "body-parser": "^1.20.2",
-    "@tensorflow/tfjs-node": "^4.11.0",
-    "sharp": "^0.32.6",
-    "csv-parser": "^3.0.0"
+    "sharp": "^0.32.6"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

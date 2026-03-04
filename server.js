@@ -6,12 +6,9 @@ const { MedicalImageAnalyzer, ECGAnalyzer } = require('./ml-models');
 
 const app = express();
 
-// Initialize ML models
+// Initialize analyzers (lightweight, no TensorFlow)
 const imageAnalyzer = new MedicalImageAnalyzer();
 const ecgAnalyzer = new ECGAnalyzer();
-
-// Load models on startup
-imageAnalyzer.loadModel().catch(err => console.error('Failed to load image model:', err));
 
 // Middleware
 app.use(cors());
