@@ -18,9 +18,14 @@ A full-stack web application that uses deep learning to analyze multiple data mo
 
 ### Backend
 - Node.js with Express
-- Multer for file uploads
-- CORS enabled for cross-origin requests
-- Support for TensorFlow.js or ONNX models
+- TensorFlow.js for deep learning inference
+- Sharp for image processing
+- Real-time ECG signal analysis
+
+### Machine Learning
+- **Image Analysis**: MobileNet CNN for medical image feature extraction
+- **ECG Analysis**: Custom signal processing algorithms for heart rhythm detection
+- **Clinical Data**: Risk factor analysis and ensemble prediction
 
 ## Installation
 
@@ -45,6 +50,26 @@ npm run dev
 ```
 
 3. Access the application at `http://localhost:5000`
+
+## Real ML Features
+
+### Medical Image Analysis
+- Uses TensorFlow.js with MobileNet architecture
+- Analyzes actual image pixels and structure
+- Detects anomalies based on activation patterns
+- Provides confidence scores and technical details
+
+### ECG Signal Processing
+- Real-time heart rate calculation from ECG data
+- Peak detection (R-wave identification)
+- Rhythm analysis (Normal Sinus, Bradycardia, Tachycardia)
+- ST segment elevation/depression detection
+- Heart Rate Variability (HRV) calculation
+
+### Clinical Data Integration
+- Multi-modal ensemble prediction
+- Combines image, ECG, and clinical risk factors
+- Generates personalized recommendations
 
 ## Usage
 

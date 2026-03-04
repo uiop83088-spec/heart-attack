@@ -2,8 +2,16 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const { MedicalImageAnalyzer, ECGAnalyzer } = require('./ml-models');
 
 const app = express();
+
+// Initialize ML models
+const imageAnalyzer = new MedicalImageAnalyzer();
+const ecgAnalyzer = new ECGAnalyzer();
+
+// Load models on startup
+imageAnalyzer.loadModel().catch(err => console.error('Failed to load image model:', err));
 
 // Middleware
 app.use(cors());
@@ -36,7 +44,7 @@ app.get('/', (req, res) => {
 app.post('/api/predict', upload.fields([
     { name: 'medical_image', maxCount: 1 },
     { name: 'ecg_data', maxCount: 1 }
-]), (req, res) => {
+]), async (req, res) => {
     try {
         const { age, gender, blood_pressure, cholesterol } = req.body;
         const files = req.files;
@@ -50,16 +58,16 @@ app.post('/api/predict', upload.fields([
             recommendations: []
         };
         
-        // Process medical image
+        // Process medical image with real ML analysis
         if (files && files.medical_image) {
             const imageFile = files.medical_image[0];
-            results.predictions.image_analysis = analyzeMedicalImage(imageFile.originalname);
+            results.predictions.image_analysis = await imageAnalyzer.analyze(imageFile.buffer);
         }
         
-        // Process ECG data
+        // Process ECG data with real signal analysis
         if (files && files.ecg_data) {
             const ecgFile = files.ecg_data[0];
-            results.predictions.ecg_analysis = analyzeECG(ecgFile.originalname);
+            results.predictions.ecg_analysis = await ecgAnalyzer.analyze(ecgFile.buffer);
         }
         
         // Process clinical data
@@ -86,48 +94,8 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'healthy', service: 'DeepHealthX API' });
 });
 
-// Analysis functions
-function analyzeMedicalImage(filename) {
-    // Simulate CNN-based medical image analysis
-    const seed = filename.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const random = () => {
-        const x = Math.sin(seed) * 10000;
-        return x - Math.floor(x);
-    };
-    
-    return {
-        confidence: parseFloat((0.75 + random() * 0.23).toFixed(2)),
-        findings: [
-            'Cardiac structure appears normal',
-            'No significant abnormalities detected',
-            'Slight calcification observed'
-        ],
-        anomaly_detected: random() > 0.7
-    };
-}
+// Clinical data analysis (kept as is)
 
-function analyzeECG(filename) {
-    // Simulate RNN/LSTM-based ECG analysis
-    const seed = filename.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const random = () => {
-        const x = Math.sin(seed * 2) * 10000;
-        return x - Math.floor(x);
-    };
-    
-    const rhythms = ['Normal Sinus Rhythm', 'Irregular', 'Tachycardia'];
-    const abnormalities = [
-        ['ST elevation detected'],
-        ['Normal ECG pattern'],
-        ['Mild arrhythmia']
-    ];
-    
-    return {
-        confidence: parseFloat((0.80 + random() * 0.15).toFixed(2)),
-        heart_rate: Math.floor(60 + random() * 40),
-        rhythm: rhythms[Math.floor(random() * rhythms.length)],
-        abnormalities: abnormalities[Math.floor(random() * abnormalities.length)]
-    };
-}
 
 function analyzeClinicalData(age, gender, blood_pressure, cholesterol) {
     const risk_factors = [];
