@@ -2,10 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
-const PORT = 5000;
 
 // Middleware
 app.use(cors());
@@ -13,24 +11,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('.'));
 
-// Create uploads directory
-const uploadDir = 'uploads';
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
-}
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + '-' + file.originalname);
-    }
-});
-
+// Configure multer for memory storage (Vercel doesn't support disk storage)
 const upload = multer({
-    storage: storage,
+    storage: multer.memoryStorage(),
     limits: { fileSize: 16 * 1024 * 1024 }, // 16MB limit
     fileFilter: (req, file, cb) => {
         const allowedTypes = /jpeg|jpg|png|dcm|csv|txt/;
@@ -68,15 +51,15 @@ app.post('/api/predict', upload.fields([
         };
         
         // Process medical image
-        if (files.medical_image) {
-            const imagePath = files.medical_image[0].path;
-            results.predictions.image_analysis = analyzeMedicalImage(imagePath);
+        if (files && files.medical_image) {
+            const imageFile = files.medical_image[0];
+            results.predictions.image_analysis = analyzeMedicalImage(imageFile.originalname);
         }
         
         // Process ECG data
-        if (files.ecg_data) {
-            const ecgPath = files.ecg_data[0].path;
-            results.predictions.ecg_analysis = analyzeECG(ecgPath);
+        if (files && files.ecg_data) {
+            const ecgFile = files.ecg_data[0];
+            results.predictions.ecg_analysis = analyzeECG(ecgFile.originalname);
         }
         
         // Process clinical data
@@ -104,9 +87,9 @@ app.get('/api/health', (req, res) => {
 });
 
 // Analysis functions
-function analyzeMedicalImage(filepath) {
+function analyzeMedicalImage(filename) {
     // Simulate CNN-based medical image analysis
-    const seed = filepath.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const seed = filename.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const random = () => {
         const x = Math.sin(seed) * 10000;
         return x - Math.floor(x);
@@ -123,9 +106,9 @@ function analyzeMedicalImage(filepath) {
     };
 }
 
-function analyzeECG(filepath) {
+function analyzeECG(filename) {
     // Simulate RNN/LSTM-based ECG analysis
-    const seed = filepath.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const seed = filename.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const random = () => {
         const x = Math.sin(seed * 2) * 10000;
         return x - Math.floor(x);
@@ -222,8 +205,13 @@ function combinePredictions(predictions) {
     };
 }
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`DeepHealthX server running on http://localhost:${PORT}`);
-    console.log(`API endpoint: http://localhost:${PORT}/api/predict`);
-});
+// Export for Vercel serverless
+module.exports = app;
+
+// For local development
+if (require.main === module) {
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+        console.log(`DeepHealthX server running on http://localhost:${PORT}`);
+    });
+}
