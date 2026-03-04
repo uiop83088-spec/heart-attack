@@ -12,7 +12,7 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     });
 });
 
-// Prediction form handler
+// Prediction form handler with client-side ML
 document.getElementById('prediction-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     
@@ -20,16 +20,45 @@ document.getElementById('prediction-form').addEventListener('submit', async func
     const resultsDiv = document.getElementById('results');
     const predictButton = this.querySelector('.predict-button');
     
-    predictButton.textContent = 'Analyzing...';
+    predictButton.textContent = 'Analyzing with MobileNetV2...';
     predictButton.disabled = true;
     
     try {
-        const response = await fetch('http://localhost:5000/api/predict', {
+        // Get medical image file for client-side ML analysis
+        const imageFile = formData.get('medical_image');
+        let clientMLResult = null;
+        
+        if (imageFile && imageFile.size > 0 && typeof analyzeMedicalImageWithML !== 'undefined') {
+            try {
+                predictButton.textContent = 'Running MobileNetV2 analysis...';
+                clientMLResult = await analyzeMedicalImageWithML(imageFile);
+            } catch (mlError) {
+                console.error('Client-side ML error:', mlError);
+            }
+        }
+        
+        // Send to server for ECG and clinical analysis
+        predictButton.textContent = 'Processing ECG and clinical data...';
+        const apiUrl = window.location.hostname === 'localhost' 
+            ? 'http://localhost:5000/api/predict'
+            : '/api/predict';
+            
+        const response = await fetch(apiUrl, {
             method: 'POST',
             body: formData
         });
         
         const data = await response.json();
+        
+        // Merge client-side ML results with server results
+        if (clientMLResult && data.success) {
+            data.predictions.image_analysis = {
+                ...data.predictions.image_analysis,
+                ml_analysis: clientMLResult,
+                model: 'MobileNetV2',
+                processing: 'client-side'
+            };
+        }
         
         if (data.success) {
             displayResults(data);
@@ -38,7 +67,7 @@ document.getElementById('prediction-form').addEventListener('submit', async func
             alert('Error: ' + data.error);
         }
     } catch (error) {
-        alert('Connection error. Make sure the backend server is running.');
+        alert('Connection error: ' + error.message);
         console.error(error);
     } finally {
         predictButton.textContent = 'Analyze with AI';
@@ -65,22 +94,38 @@ function displayResults(data) {
     let detailHTML = '<h4>Detailed Analysis:</h4>';
     
     if (data.predictions.image_analysis) {
+        const imgAnalysis = data.predictions.image_analysis;
+        const confidence = imgAnalysis.confidence * 100;
+        
         detailHTML += `<div class="prediction-item">
-            <strong>Medical Image:</strong> Confidence ${data.predictions.image_analysis.confidence * 100}%
-            <ul>${data.predictions.image_analysis.findings.map(f => `<li>${f}</li>`).join('')}</ul>
-        </div>`;
+            <strong>Medical Image Analysis:</strong> 
+            ${imgAnalysis.ml_analysis ? '<span class="ml-badge">MobileNetV2</span>' : ''}
+            Confidence ${confidence.toFixed(1)}%`;
+        
+        // Show ML-specific findings if available
+        if (imgAnalysis.ml_analysis) {
+            detailHTML += `<ul>${imgAnalysis.ml_analysis.findings.map(f => `<li>${f}</li>`).join('')}</ul>`;
+            detailHTML += `<p><small>Model: MobileNetV2 | Processing: Client-side | 
+                Anomaly Score: ${imgAnalysis.ml_analysis.anomaly_score}</small></p>`;
+        } else {
+            detailHTML += `<ul>${imgAnalysis.findings.map(f => `<li>${f}</li>`).join('')}</ul>`;
+        }
+        
+        detailHTML += `</div>`;
     }
     
     if (data.predictions.ecg_analysis) {
         detailHTML += `<div class="prediction-item">
             <strong>ECG Analysis:</strong> ${data.predictions.ecg_analysis.rhythm}
             <p>Heart Rate: ${data.predictions.ecg_analysis.heart_rate} bpm</p>
+            <ul>${data.predictions.ecg_analysis.abnormalities.map(a => `<li>${a}</li>`).join('')}</ul>
         </div>`;
     }
     
     if (data.predictions.clinical_analysis) {
         detailHTML += `<div class="prediction-item">
             <strong>Clinical Factors:</strong> ${data.predictions.clinical_analysis.risk_factor_count} risk factors identified
+            <ul>${data.predictions.clinical_analysis.risk_factors.map(r => `<li>${r}</li>`).join('')}</ul>
         </div>`;
     }
     

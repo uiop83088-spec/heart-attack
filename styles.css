@@ -464,3 +464,19 @@ input[type="file"] {
 #recommendations li {
     margin-bottom: 0.5rem;
 }
+
+/* ML Badge */
+.ml-badge {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    margin-left: 10px;
+    font-weight: bold;
+}
+
+.prediction-item small {
+    color: #666;
+    font-style: italic;
+}
