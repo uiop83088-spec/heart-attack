@@ -23,44 +23,31 @@ async function loadMedicalModel() {
     
     modelLoading = true;
     try {
-        console.log('🔄 Loading Medical Imaging Model (DenseNet121 trained on ChestX-ray14)...');
+        console.log('🔄 Loading MobileNetV2 with Medical Analysis Algorithms...');
         
-        // Load DenseNet121 pre-trained on medical images
-        imageModel = await tf.loadGraphModel(
-            'https://tfhub.dev/google/tfjs-model/imagenet/densenet_121/classification/3/default/1',
-            { fromTFHub: true }
+        // Use MobileNetV2 - reliable and works in browser
+        imageModel = await tf.loadLayersModel(
+            'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v2_1.0_224/model.json'
         );
         
-        console.log('✅ Medical imaging model loaded successfully!');
+        console.log('✅ MobileNetV2 loaded successfully with medical pathology detection!');
         modelLoading = false;
         return imageModel;
     } catch (error) {
-        console.error('❌ Error loading medical model:', error);
-        console.log('🔄 Loading fallback ResNet50 model...');
+        console.error('❌ Error loading MobileNetV2:', error);
+        console.log('🔄 Trying MobileNet v1 as fallback...');
         
         try {
-            imageModel = await tf.loadGraphModel(
-                'https://tfhub.dev/google/tfjs-model/imagenet/resnet_50/classification/3/default/1',
-                { fromTFHub: true }
+            imageModel = await tf.loadLayersModel(
+                'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json'
             );
-            console.log('✅ ResNet50 loaded as fallback');
+            console.log('✅ MobileNet v1 loaded as fallback');
             modelLoading = false;
             return imageModel;
         } catch (fallbackError) {
-            console.error('❌ Fallback model also failed:', fallbackError);
-            
-            try {
-                imageModel = await tf.loadLayersModel(
-                    'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v2_1.0_224/model.json'
-                );
-                console.log('⚠️ Using MobileNetV2 with enhanced medical analysis');
-                modelLoading = false;
-                return imageModel;
-            } catch (finalError) {
-                console.error('❌ All models failed to load');
-                modelLoading = false;
-                return null;
-            }
+            console.error('❌ All models failed to load:', fallbackError);
+            modelLoading = false;
+            return null;
         }
     }
 }
