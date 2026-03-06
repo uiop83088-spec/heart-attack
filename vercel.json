@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "api/analyze.py",
-      "use": "@vercel/python"
+      "source": "/(.*)",
+      "destination": "/$1"
     }
   ]
 }
