@@ -79,40 +79,29 @@
 
     <section id="demo" class="demo">
         <div class="container">
-            <h2>Try the AI Model</h2>
+            <h2>AI-Powered Heart Disease Detection</h2>
+            <p style="text-align: center; margin-bottom: 2rem; opacity: 0.9;">
+                Upload medical images (X-Ray, CT Scan, ECG Image, MRI) for deep learning analysis
+            </p>
             <div class="demo-form">
                 <form id="prediction-form" enctype="multipart/form-data">
                     <div class="form-section">
-                        <h3>📸 Medical Image</h3>
-                        <input type="file" name="medical_image" accept="image/*,.dcm" id="medical-image">
-                        <label for="medical-image" class="file-label">Choose Image File</label>
+                        <h3>📸 Upload Medical Image</h3>
+                        <p style="font-size: 0.9rem; opacity: 0.8; margin-bottom: 1rem;">
+                            Supported: Chest X-Ray, CT Scan, ECG Image, Cardiac MRI
+                        </p>
+                        <input type="file" name="medical_image" accept="image/*" id="medical-image" required>
+                        <label for="medical-image" class="file-label">Choose Medical Image</label>
+                        <div id="image-preview" style="margin-top: 1rem; text-align: center;"></div>
                     </div>
                     
-                    <div class="form-section">
-                        <h3>📊 ECG Data</h3>
-                        <input type="file" name="ecg_data" accept=".csv,.txt" id="ecg-data">
-                        <label for="ecg-data" class="file-label">Choose ECG File</label>
-                    </div>
-                    
-                    <div class="form-section">
-                        <h3>📋 Clinical Information</h3>
-                        <div class="form-grid">
-                            <input type="number" name="age" placeholder="Age" required>
-                            <select name="gender" required>
-                                <option value="">Select Gender</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                            </select>
-                            <input type="text" name="blood_pressure" placeholder="Blood Pressure (e.g., 120/80)">
-                            <input type="number" name="cholesterol" placeholder="Cholesterol (mg/dL)" step="0.1">
-                        </div>
-                    </div>
-                    
-                    <button type="submit" class="predict-button">Analyze with AI</button>
+                    <button type="submit" class="predict-button">
+                        🧠 Analyze with MobileNetV2 Deep Learning
+                    </button>
                 </form>
                 
                 <div id="results" class="results hidden">
-                    <h3>Analysis Results</h3>
+                    <h3>Deep Learning Analysis Results</h3>
                     <div class="risk-score">
                         <div class="score-circle">
                             <span id="risk-percentage">0</span>%

@@ -12,129 +12,145 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     });
 });
 
-// Prediction form handler with client-side ML
+// Image preview
+document.getElementById('medical-image').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    const preview = document.getElementById('image-preview');
+    
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.innerHTML = `<img src="${e.target.result}" style="max-width: 300px; max-height: 300px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+                <p style="margin-top: 0.5rem; font-size: 0.9rem;">✓ ${file.name}</p>`;
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+// Deep Learning Analysis - Image Only
 document.getElementById('prediction-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     
-    const formData = new FormData(this);
     const resultsDiv = document.getElementById('results');
     const predictButton = this.querySelector('.predict-button');
+    const imageFile = document.getElementById('medical-image').files[0];
     
-    predictButton.textContent = 'Analyzing with MobileNetV2...';
+    if (!imageFile) {
+        alert('Please upload a medical image');
+        return;
+    }
+    
+    predictButton.innerHTML = '🧠 Running MobileNetV2 Deep Learning...';
     predictButton.disabled = true;
     
     try {
-        // Get medical image file for client-side ML analysis
-        const imageFile = formData.get('medical_image');
-        let clientMLResult = null;
-        
-        if (imageFile && imageFile.size > 0 && typeof analyzeMedicalImageWithML !== 'undefined') {
-            try {
-                predictButton.textContent = 'Running MobileNetV2 analysis...';
-                clientMLResult = await analyzeMedicalImageWithML(imageFile);
-            } catch (mlError) {
-                console.error('Client-side ML error:', mlError);
-            }
+        // Run MobileNetV2 analysis
+        if (typeof analyzeMedicalImageWithML === 'undefined') {
+            throw new Error('ML model not loaded. Please refresh the page.');
         }
         
-        // Send to server for ECG and clinical analysis
-        predictButton.textContent = 'Processing ECG and clinical data...';
-        const apiUrl = window.location.hostname === 'localhost' 
-            ? 'http://localhost:5000/api/predict'
-            : '/api/predict';
-            
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            body: formData
-        });
+        const mlResult = await analyzeMedicalImageWithML(imageFile);
         
-        const data = await response.json();
-        
-        // Merge client-side ML results with server results
-        if (clientMLResult && data.success) {
-            data.predictions.image_analysis = {
-                ...data.predictions.image_analysis,
-                ml_analysis: clientMLResult,
-                model: 'MobileNetV2',
-                processing: 'client-side'
-            };
+        if (!mlResult) {
+            throw new Error('ML analysis failed');
         }
         
-        if (data.success) {
-            displayResults(data);
-            resultsDiv.classList.remove('hidden');
-        } else {
-            alert('Error: ' + data.error);
-        }
+        // Display results
+        displayMLResults(mlResult);
+        resultsDiv.classList.remove('hidden');
+        
     } catch (error) {
-        alert('Connection error: ' + error.message);
+        alert('Analysis error: ' + error.message);
         console.error(error);
     } finally {
-        predictButton.textContent = 'Analyze with AI';
+        predictButton.innerHTML = '🧠 Analyze with MobileNetV2 Deep Learning';
         predictButton.disabled = false;
     }
 });
 
-function displayResults(data) {
-    document.getElementById('risk-percentage').textContent = data.risk_score;
-    document.getElementById('risk-level').textContent = data.risk_level;
+function displayMLResults(mlResult) {
+    // Calculate risk score from ML analysis
+    const riskScore = (parseFloat(mlResult.anomaly_score) * 100).toFixed(1);
     
-    const riskLevel = document.getElementById('risk-level');
-    riskLevel.className = '';
-    if (data.risk_score < 30) {
-        riskLevel.classList.add('low-risk');
-    } else if (data.risk_score < 60) {
-        riskLevel.classList.add('moderate-risk');
+    document.getElementById('risk-percentage').textContent = riskScore;
+    
+    let riskLevel, riskClass;
+    if (riskScore < 30) {
+        riskLevel = 'Low Risk';
+        riskClass = 'low-risk';
+    } else if (riskScore < 60) {
+        riskLevel = 'Moderate Risk';
+        riskClass = 'moderate-risk';
     } else {
-        riskLevel.classList.add('high-risk');
+        riskLevel = 'High Risk';
+        riskClass = 'high-risk';
     }
     
-    // Display detailed predictions
+    const riskLevelEl = document.getElementById('risk-level');
+    riskLevelEl.textContent = riskLevel;
+    riskLevelEl.className = riskClass;
+    
+    // Display detailed ML analysis
     const detailDiv = document.getElementById('predictions-detail');
-    let detailHTML = '<h4>Detailed Analysis:</h4>';
+    const confidence = (parseFloat(mlResult.confidence) * 100).toFixed(1);
     
-    if (data.predictions.image_analysis) {
-        const imgAnalysis = data.predictions.image_analysis;
-        const confidence = imgAnalysis.confidence * 100;
-        
-        detailHTML += `<div class="prediction-item">
-            <strong>Medical Image Analysis:</strong> 
-            ${imgAnalysis.ml_analysis ? '<span class="ml-badge">MobileNetV2</span>' : ''}
-            Confidence ${confidence.toFixed(1)}%`;
-        
-        // Show ML-specific findings if available
-        if (imgAnalysis.ml_analysis) {
-            detailHTML += `<ul>${imgAnalysis.ml_analysis.findings.map(f => `<li>${f}</li>`).join('')}</ul>`;
-            detailHTML += `<p><small>Model: MobileNetV2 | Processing: Client-side | 
-                Anomaly Score: ${imgAnalysis.ml_analysis.anomaly_score}</small></p>`;
-        } else {
-            detailHTML += `<ul>${imgAnalysis.findings.map(f => `<li>${f}</li>`).join('')}</ul>`;
-        }
-        
-        detailHTML += `</div>`;
-    }
-    
-    if (data.predictions.ecg_analysis) {
-        detailHTML += `<div class="prediction-item">
-            <strong>ECG Analysis:</strong> ${data.predictions.ecg_analysis.rhythm}
-            <p>Heart Rate: ${data.predictions.ecg_analysis.heart_rate} bpm</p>
-            <ul>${data.predictions.ecg_analysis.abnormalities.map(a => `<li>${a}</li>`).join('')}</ul>
-        </div>`;
-    }
-    
-    if (data.predictions.clinical_analysis) {
-        detailHTML += `<div class="prediction-item">
-            <strong>Clinical Factors:</strong> ${data.predictions.clinical_analysis.risk_factor_count} risk factors identified
-            <ul>${data.predictions.clinical_analysis.risk_factors.map(r => `<li>${r}</li>`).join('')}</ul>
-        </div>`;
-    }
+    let detailHTML = `
+        <h4>🧠 MobileNetV2 Deep Learning Analysis</h4>
+        <div class="prediction-item">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <strong>Neural Network Analysis</strong>
+                <span class="ml-badge">MobileNetV2 CNN</span>
+            </div>
+            <p><strong>Confidence:</strong> ${confidence}%</p>
+            <p><strong>Anomaly Detection:</strong> ${mlResult.anomaly_detected ? '⚠️ Abnormalities Detected' : '✓ Normal Patterns'}</p>
+            <p><strong>Anomaly Score:</strong> ${mlResult.anomaly_score}</p>
+            
+            <h5 style="margin-top: 1.5rem;">Findings:</h5>
+            <ul>${mlResult.findings.map(f => `<li>${f}</li>`).join('')}</ul>
+            
+            <h5 style="margin-top: 1.5rem;">Technical Details:</h5>
+            <div style="background: #f8f9fa; padding: 1rem; border-radius: 5px; font-size: 0.9rem;">
+                <p><strong>Feature Count:</strong> ${mlResult.technical_details.feature_count}</p>
+                <p><strong>Mean Activation:</strong> ${mlResult.technical_details.mean}</p>
+                <p><strong>Std Deviation:</strong> ${mlResult.technical_details.std_dev}</p>
+                <p><strong>Max Activation:</strong> ${mlResult.technical_details.max_activation}</p>
+                <p><strong>Processing:</strong> Client-side (Browser GPU)</p>
+            </div>
+        </div>
+    `;
     
     detailDiv.innerHTML = detailHTML;
     
-    // Display recommendations
+    // Display recommendations based on risk
     const recDiv = document.getElementById('recommendations');
-    recDiv.innerHTML = '<h4>Recommendations:</h4><ul>' + 
-        data.recommendations.map(r => `<li>${r}</li>`).join('') + '</ul>';
+    let recommendations;
+    
+    if (riskScore < 30) {
+        recommendations = [
+            'Continue regular health monitoring',
+            'Maintain healthy lifestyle habits',
+            'Schedule routine checkup within 12 months',
+            'No immediate action required'
+        ];
+    } else if (riskScore < 60) {
+        recommendations = [
+            'Consult with a cardiologist for detailed evaluation',
+            'Consider additional diagnostic tests',
+            'Monitor symptoms closely',
+            'Follow-up within 3-6 months recommended'
+        ];
+    } else {
+        recommendations = [
+            '⚠️ Immediate consultation with cardiologist strongly recommended',
+            'Further diagnostic imaging may be required',
+            'Do not delay medical attention',
+            'Consider emergency evaluation if experiencing symptoms'
+        ];
+    }
+    
+    recDiv.innerHTML = '<h4>Medical Recommendations:</h4><ul>' + 
+        recommendations.map(r => `<li>${r}</li>`).join('') + '</ul>' +
+        '<p style="margin-top: 1rem; font-size: 0.9rem; color: #666;"><em>Note: This is an AI-assisted analysis. Always consult qualified healthcare professionals for medical diagnosis.</em></p>';
 }
 
 // File input labels

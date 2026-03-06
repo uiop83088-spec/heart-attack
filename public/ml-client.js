@@ -147,8 +147,23 @@ function generateMLFindings(anomalyScore, stdDev) {
 
 // Initialize model on page load
 window.addEventListener('load', () => {
-    console.log('Initializing TensorFlow.js...');
-    loadMobileNetModel().then(() => {
-        console.log('ML model ready for analysis');
-    });
+    console.log('🧠 Initializing TensorFlow.js and MobileNetV2...');
+    
+    // Show loading indicator
+    const form = document.getElementById('prediction-form');
+    if (form) {
+        const button = form.querySelector('.predict-button');
+        const originalText = button.innerHTML;
+        button.innerHTML = '⏳ Loading AI Model...';
+        button.disabled = true;
+        
+        loadMobileNetModel().then(() => {
+            console.log('✓ MobileNetV2 model ready for analysis');
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }).catch(err => {
+            console.error('Failed to load model:', err);
+            button.innerHTML = '❌ Model Load Failed - Refresh Page';
+        });
+    }
 });
