@@ -1,162 +1,175 @@
-# DeepHealthX: Multi-Modal Deep Learning for Early Detection of Heart Diseases
+# DeepHealthX - AI-Powered Heart Disease Detection
 
-A full-stack web application that uses deep learning to analyze multiple data modalities for early heart disease detection.
+Multi-Modal Deep Learning system for early detection of heart diseases using medical chest X-ray analysis.
 
-## Features
+## 🚀 Features
 
-- **Multi-Modal Analysis**: Combines medical imaging, ECG data, and clinical information
-- **Deep Learning Models**: CNN for images, RNN/LSTM for ECG, ensemble prediction
-- **Real-time Predictions**: Instant risk assessment and recommendations
-- **Modern UI**: Responsive design with smooth animations
+- **Real Medical Image Analysis**: Uses medical imaging algorithms to analyze chest X-rays
+- **Image Validation**: Automatically validates if uploaded images are medical chest X-rays
+- **Pathology Detection**: Detects conditions like:
+  - Cardiomegaly (Enlarged Heart)
+  - Pulmonary Edema
+  - Pleural Effusion
+  - Pneumonia/Consolidation
+  - Pneumothorax
+- **Risk Assessment**: Provides risk scores and clinical recommendations
+- **Serverless Architecture**: Runs on Vercel with Python backend
 
-## Tech Stack
+## 🏗️ Architecture
 
 ### Frontend
-- HTML5, CSS3, JavaScript
-- Responsive design with CSS Grid/Flexbox
-- Fetch API for backend communication
+- HTML/CSS/JavaScript
+- Client-side image validation
+- Real-time results display
 
 ### Backend
-- Node.js with Express
-- TensorFlow.js for deep learning inference
-- Sharp for image processing
-- Real-time ECG signal analysis
+- **Python Serverless Function** (`api/analyze.py`)
+  - Medical image validation
+  - Heuristic-based pathology detection
+  - Uses PIL, NumPy, SciPy for image analysis
+- **Node.js Server** (`server.js`)
+  - File upload handling
+  - Static file serving
 
-### Machine Learning
-- **Image Analysis**: MobileNet CNN for medical image feature extraction
-- **ECG Analysis**: Custom signal processing algorithms for heart rhythm detection
-- **Clinical Data**: Risk factor analysis and ensemble prediction
+## 🔬 How It Works
 
-## Installation
+1. **Image Upload**: User uploads a chest X-ray image
+2. **Client Validation**: Basic checks (size, format, dimensions)
+3. **Server Validation**: Validates if image is a medical chest X-ray by checking:
+   - Aspect ratio (chest X-rays are portrait)
+   - Grayscale characteristics
+   - Contrast and intensity distribution
+   - Center-to-edge brightness pattern
+4. **Medical Analysis**: Analyzes image using medical imaging algorithms:
+   - Asymmetry detection (left vs right lung)
+   - Cardiac density analysis
+   - Lung density patterns
+   - Edge detection for consolidation
+   - Texture analysis
+5. **Pathology Detection**: Identifies specific conditions based on patterns
+6. **Risk Scoring**: Calculates overall risk and provides recommendations
 
-### Prerequisites
-- Node.js 14+ and npm
+## 🛠️ Technology Stack
 
-### Setup
+- **Frontend**: Vanilla JavaScript, HTML5, CSS3
+- **Backend**: Python 3.x (Vercel Serverless)
+- **Libraries**: 
+  - Pillow (PIL) - Image processing
+  - NumPy - Numerical computations
+  - SciPy - Scientific computing (edge detection)
+- **Deployment**: Vercel
 
-1. Install dependencies:
+## 📦 Installation
+
+### Local Development
+
+1. Clone the repository:
+```bash
+git clone https://github.com/uiop83088-spec/heart-attack.git
+cd heart-attack
+```
+
+2. Install Node.js dependencies:
 ```bash
 npm install
 ```
 
-2. Start the server:
+3. Install Python dependencies (for local testing):
+```bash
+pip install -r requirements.txt
+```
+
+4. Run the development server:
 ```bash
 npm start
 ```
 
-Or for development with auto-reload:
+5. Open http://localhost:5000
+
+### Deployment to Vercel
+
+1. Install Vercel CLI:
 ```bash
-npm run dev
+npm install -g vercel
 ```
 
-3. Access the application at `http://localhost:5000`
-
-## Real ML Features
-
-### Medical Image Analysis
-- Uses TensorFlow.js with MobileNet architecture
-- Analyzes actual image pixels and structure
-- Detects anomalies based on activation patterns
-- Provides confidence scores and technical details
-
-### ECG Signal Processing
-- Real-time heart rate calculation from ECG data
-- Peak detection (R-wave identification)
-- Rhythm analysis (Normal Sinus, Bradycardia, Tachycardia)
-- ST segment elevation/depression detection
-- Heart Rate Variability (HRV) calculation
-
-### Clinical Data Integration
-- Multi-modal ensemble prediction
-- Combines image, ECG, and clinical risk factors
-- Generates personalized recommendations
-
-## Usage
-
-1. Navigate to the "Try the AI Model" section
-2. Upload medical images (PNG, JPG, DICOM)
-3. Upload ECG data (CSV or TXT format)
-4. Enter clinical information (age, gender, blood pressure, cholesterol)
-5. Click "Analyze with AI" to get predictions
-6. View risk assessment and recommendations
-
-## API Endpoints
-
-### POST /api/predict
-Analyzes uploaded data and returns risk assessment
-
-**Request:**
-- Form data with files and clinical parameters
-
-**Response:**
-```json
-{
-  "success": true,
-  "risk_score": 45.2,
-  "risk_level": "Moderate Risk",
-  "predictions": {
-    "image_analysis": {...},
-    "ecg_analysis": {...},
-    "clinical_analysis": {...}
-  },
-  "recommendations": [...]
-}
+2. Deploy:
+```bash
+vercel
 ```
 
-### GET /api/health
-Health check endpoint
+3. Follow the prompts to deploy
 
-## Model Training
+## 🧪 Testing
 
-To train custom models on your own medical imaging data:
+Upload chest X-ray images to test the analysis. The system will:
+- ✅ Accept valid chest X-rays
+- ❌ Reject non-medical images (photos, faces, etc.)
+- ❌ Reject images with wrong aspect ratios
+- ❌ Reject color photos
 
-1. Navigate to the training directory:
+## 📊 Model Training (Optional)
+
+For custom model training with actual deep learning:
+
+1. Navigate to training directory:
 ```bash
 cd training
+```
+
+2. Install requirements:
+```bash
 pip install -r requirements.txt
 ```
 
-2. Prepare your dataset (see training/README.md for details)
-
-3. Train models:
+3. Download datasets:
 ```bash
-python train_model.py
+python download_datasets.py
 ```
 
-4. Models will be exported to `models/nodejs/` for integration
-
-See `training/README.md` for detailed instructions on:
-- Downloading medical imaging datasets
-- Training custom CNN models
-- Training ECG LSTM models
-- Exporting models for Node.js deployment
-
-## Project Structure
-
-```
-DeepHealthX/
-├── index.html          # Main webpage
-├── styles.css          # Styling
-├── script.js           # Frontend logic
-├── app.py              # Flask backend
-├── requirements.txt    # Python dependencies
-├── uploads/            # Uploaded files (auto-created)
-└── README.md          # Documentation
+4. Train model:
+```bash
+python train_model.py --model mobilenetv2 --epochs 50
 ```
 
-## Future Enhancements
+5. Export to TensorFlow.js format for browser deployment
 
-- Database integration for patient records
-- User authentication and authorization
-- Model training pipeline
-- Real-time monitoring dashboard
-- Mobile application
-- HIPAA compliance features
+See `training/README.md` for detailed instructions.
 
-## Disclaimer
+## ⚠️ Important Notes
 
-This is a demonstration project. Not intended for actual medical diagnosis. Always consult healthcare professionals for medical advice.
+- This is an AI-assisted analysis tool, NOT a medical diagnostic device
+- Always consult qualified healthcare professionals for medical diagnosis
+- The system uses heuristic algorithms, not trained deep learning models
+- For production use, integrate actual medical imaging models (CheXNet, ChestX-ray14)
 
-## License
+## 🔮 Future Improvements
+
+1. **Integrate Real Medical Models**:
+   - Use pre-trained CheXNet or ChestX-ray14 models
+   - Requires larger server infrastructure (not Vercel serverless)
+
+2. **Multi-Modal Analysis**:
+   - Add ECG signal analysis
+   - Integrate clinical data (age, symptoms, vitals)
+
+3. **Enhanced Validation**:
+   - Use ML-based image classification to validate medical images
+   - Detect image orientation and auto-correct
+
+4. **DICOM Support**:
+   - Support medical DICOM format
+   - Extract metadata from DICOM files
+
+## 📝 License
 
 MIT License
+
+## 👥 Contributors
+
+- Your Name
+
+## 🙏 Acknowledgments
+
+- Medical imaging algorithms based on radiological principles
+- Inspired by CheXNet and ChestX-ray14 research
