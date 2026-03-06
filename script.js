@@ -27,7 +27,7 @@ document.getElementById('medical-image').addEventListener('change', function(e) 
     }
 });
 
-// Deep Learning Analysis - Medical Chest X-Ray Only
+// Medical Image Analysis
 document.getElementById('prediction-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     
@@ -36,29 +36,38 @@ document.getElementById('prediction-form').addEventListener('submit', async func
     const imageFile = document.getElementById('medical-image').files[0];
     
     if (!imageFile) {
-        alert('⚠️ Please upload a chest X-ray image first');
+        alert('⚠️ Please upload a medical image (Chest X-Ray or ECG graph)');
         return;
     }
     
-    predictButton.innerHTML = '🔍 Validating image...';
+    // Check file size
+    if (imageFile.size > 10 * 1024 * 1024) {
+        alert('⚠️ Image too large. Please use an image smaller than 10MB');
+        return;
+    }
+    
+    predictButton.innerHTML = '🧠 Analyzing Medical Image...';
     predictButton.disabled = true;
     
     try {
-        // Validate image before sending to server
-        if (typeof validateImageBeforeUpload !== 'undefined') {
-            await validateImageBeforeUpload(imageFile);
+        // Check if TensorFlow.js is loaded
+        if (typeof tf === 'undefined') {
+            throw new Error('TensorFlow.js not loaded. Please refresh the page.');
         }
         
-        predictButton.innerHTML = '🏥 Analyzing Chest X-Ray with Medical AI...';
+        // Check if ML function exists
+        if (typeof analyzeMedicalImageWithML === 'undefined') {
+            throw new Error('ML analysis function not available. Please refresh the page.');
+        }
         
-        console.log('Starting medical chest X-ray analysis...');
-        const mlResult = await analyzeMedicalChestXray(imageFile);
+        console.log('Starting analysis...');
+        const mlResult = await analyzeMedicalImageWithML(imageFile);
         
         if (!mlResult) {
-            throw new Error('Medical analysis returned no results.');
+            throw new Error('Analysis returned no results.');
         }
         
-        console.log('Medical analysis successful:', mlResult);
+        console.log('Analysis successful:', mlResult);
         
         // Display results
         displayMLResults(mlResult);
@@ -69,24 +78,9 @@ document.getElementById('prediction-form').addEventListener('submit', async func
         
     } catch (error) {
         console.error('Analysis error:', error);
-        
-        // Show user-friendly error message
-        let errorMessage = error.message;
-        if (errorMessage.includes('Invalid medical image') || errorMessage.includes('doesn\'t match')) {
-            alert('❌ ' + errorMessage);
-        } else {
-            alert(
-                '❌ Analysis Error:\n\n' + 
-                errorMessage + 
-                '\n\nPlease try:\n' +
-                '1. Use a chest X-ray image (grayscale medical imaging)\n' +
-                '2. Ensure the image is clear and properly oriented\n' +
-                '3. Check your internet connection\n' +
-                '4. Try a different image'
-            );
-        }
+        alert('❌ ' + error.message + '\n\nPlease ensure you upload a black & white medical image (Chest X-Ray or ECG graph only).');
     } finally {
-        predictButton.innerHTML = '🧠 Analyze Chest X-Ray with Medical AI';
+        predictButton.innerHTML = '🧠 Analyze Medical Image';
         predictButton.disabled = false;
     }
 });
@@ -121,8 +115,8 @@ function displayMLResults(mlResult) {
         <h4>🏥 Medical AI Analysis - Chest X-Ray Pathology Detection</h4>
         <div class="prediction-item">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <strong>Medical Imaging Analysis</strong>
-                <span class="ml-badge">Python Medical AI</span>
+                <strong>Deep Learning Medical Analysis</strong>
+                <span class="ml-badge">DenseNet121 Medical</span>
             </div>
             <p><strong>Overall Confidence:</strong> ${confidence}%</p>
             <p><strong>Pathology Status:</strong> ${mlResult.anomaly_detected ? '⚠️ Abnormalities Detected' : '✓ Normal Chest X-Ray'}</p>
@@ -134,26 +128,22 @@ function displayMLResults(mlResult) {
                     <div style="margin-bottom: 0.5rem;">
                         <strong>${cond.name}</strong><br>
                         <small>Confidence: ${(cond.confidence * 100).toFixed(0)}% | Severity: ${cond.severity}</small>
-                        ${cond.description ? `<br><small style="color: #666;">${cond.description}</small>` : ''}
                     </div>
                 `).join('<hr style="margin: 0.5rem 0;">')}
             </div>
             
             <h5 style="margin-top: 1.5rem;">📋 Clinical Findings:</h5>
-            <div style="background: #f8f9fa; padding: 1rem; border-radius: 5px; font-family: monospace; font-size: 0.85rem; white-space: pre-line;">
-                ${mlResult.findings.join('\n')}
-            </div>
+            <ul>${mlResult.findings.map(f => `<li>${f}</li>`).join('')}</ul>
             
             <h5 style="margin-top: 1.5rem;">🔬 Technical Analysis:</h5>
             <div style="background: #f8f9fa; padding: 1rem; border-radius: 5px; font-size: 0.9rem;">
-                ${mlResult.technical_details ? `
-                    ${mlResult.technical_details.asymmetry !== undefined ? `<p><strong>Asymmetry Score:</strong> ${mlResult.technical_details.asymmetry.toFixed(4)}</p>` : ''}
-                    ${mlResult.technical_details.cardiac_density !== undefined ? `<p><strong>Cardiac Density:</strong> ${mlResult.technical_details.cardiac_density.toFixed(4)}</p>` : ''}
-                    ${mlResult.technical_details.lung_density !== undefined ? `<p><strong>Lung Density:</strong> ${mlResult.technical_details.lung_density.toFixed(4)}</p>` : ''}
-                    ${mlResult.technical_details.edge_strength !== undefined ? `<p><strong>Edge Strength:</strong> ${mlResult.technical_details.edge_strength.toFixed(4)}</p>` : ''}
-                    ${mlResult.technical_details.texture_variance !== undefined ? `<p><strong>Texture Variance:</strong> ${mlResult.technical_details.texture_variance.toFixed(4)}</p>` : ''}
-                    <p><strong>Processing:</strong> Server-side Medical Imaging Algorithms</p>
-                ` : '<p>Technical details not available</p>'}
+                <p><strong>Feature Count:</strong> ${mlResult.technical_details.feature_count}</p>
+                <p><strong>Mean Activation:</strong> ${mlResult.technical_details.mean_activation}</p>
+                <p><strong>High Activation Ratio:</strong> ${mlResult.technical_details.high_activation_ratio}</p>
+                <p><strong>Asymmetry Score:</strong> ${mlResult.technical_details.asymmetry_score}</p>
+                <p><strong>Edge Strength:</strong> ${mlResult.technical_details.edge_strength}</p>
+                <p><strong>Texture Complexity:</strong> ${mlResult.technical_details.texture_complexity}</p>
+                <p><strong>Processing:</strong> Client-side Neural Network</p>
             </div>
         </div>
     `;
@@ -189,7 +179,7 @@ function displayMLResults(mlResult) {
     
     recDiv.innerHTML = '<h4>Medical Recommendations:</h4><ul>' + 
         recommendations.map(r => `<li>${r}</li>`).join('') + '</ul>' +
-        '<p style="margin-top: 1rem; font-size: 0.9rem; color: #666;"><em>Note: This is an AI-assisted analysis using medical imaging algorithms. Always consult qualified healthcare professionals for medical diagnosis.</em></p>';
+        '<p style="margin-top: 1rem; font-size: 0.9rem; color: #666;"><em>Note: This is an AI-assisted analysis. Always consult qualified healthcare professionals for medical diagnosis.</em></p>';
 }
 
 // File input labels

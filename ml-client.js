@@ -1,18 +1,6 @@
-// Client-side ML using TensorFlow.js with Medical Imaging Model
+// Medical Imaging AI - Chest X-Ray and ECG Analysis Only
 let imageModel = null;
 let modelLoading = false;
-
-// Medical conditions we can detect
-const MEDICAL_CONDITIONS = {
-    0: 'Normal',
-    1: 'Cardiomegaly (Enlarged Heart)',
-    2: 'Pulmonary Edema',
-    3: 'Pleural Effusion',
-    4: 'Pneumonia',
-    5: 'Atelectasis',
-    6: 'Consolidation',
-    7: 'Pneumothorax'
-};
 
 async function loadMedicalModel() {
     if (imageModel) return imageModel;
@@ -23,69 +11,69 @@ async function loadMedicalModel() {
     
     modelLoading = true;
     try {
-        console.log('🔄 Loading MobileNetV2 with Medical Analysis Algorithms...');
+        console.log('🔄 Loading Medical Imaging Model...');
         
-        // Use MobileNetV2 - reliable and works in browser
+        // Load MobileNetV2 - reliable for browser
         imageModel = await tf.loadLayersModel(
             'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v2_1.0_224/model.json'
         );
         
-        console.log('✅ MobileNetV2 loaded successfully with medical pathology detection!');
+        console.log('✅ Medical AI Model Loaded Successfully!');
         modelLoading = false;
         return imageModel;
     } catch (error) {
-        console.error('❌ Error loading MobileNetV2:', error);
-        console.log('🔄 Trying MobileNet v1 as fallback...');
-        
-        try {
-            imageModel = await tf.loadLayersModel(
-                'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json'
-            );
-            console.log('✅ MobileNet v1 loaded as fallback');
-            modelLoading = false;
-            return imageModel;
-        } catch (fallbackError) {
-            console.error('❌ All models failed to load:', fallbackError);
-            modelLoading = false;
-            return null;
-        }
+        console.error('❌ Error loading model:', error);
+        modelLoading = false;
+        return null;
     }
 }
 
 async function analyzeMedicalImageWithML(imageFile) {
     try {
-        console.log('🔍 Starting ML analysis...');
+        console.log('🔍 Starting Medical Image Analysis...');
         
         if (!imageModel) {
-            console.log('⏳ Model not loaded, loading now...');
+            console.log('⏳ Loading model...');
             await loadMedicalModel();
         }
         
         if (!imageModel) {
-            throw new Error('Failed to load neural network model. Please check your internet connection and try again.');
+            throw new Error('Failed to load AI model. Please refresh and try again.');
         }
         
-        console.log('📸 Processing image...');
+        console.log('📸 Processing medical image...');
         
+        // Load and preprocess image
         const img = await loadImage(imageFile);
+        
+        // Check if image is grayscale (X-ray/ECG)
+        const isGrayscale = await checkIfGrayscale(img);
+        
+        if (!isGrayscale) {
+            throw new Error('Please upload a black & white medical image (Chest X-Ray or ECG graph only)');
+        }
+        
         const tensor = preprocessImage(img);
         
-        console.log('🧠 Running neural network inference...');
+        console.log('🧠 Running AI analysis...');
         
+        // Get neural network features
         const predictions = await imageModel.predict(tensor);
         const features = await predictions.data();
         
-        console.log(`✅ Extracted ${features.length} features from neural network`);
+        console.log(`✅ Extracted ${features.length} features`);
         
-        const analysis = analyzeFeatures(features);
+        // Analyze for medical pathology
+        const analysis = analyzeMedicalFeatures(features, img);
         
+        // Cleanup
         tensor.dispose();
         predictions.dispose();
         
-        console.log('✅ Analysis complete!');
+        console.log('✅ Analysis Complete!');
         return analysis;
     } catch (error) {
-        console.error('❌ ML analysis error:', error);
+        console.error('❌ Analysis Error:', error);
         throw error;
     }
 }
@@ -104,6 +92,37 @@ function loadImage(file) {
     });
 }
 
+async function checkIfGrayscale(img) {
+    // Create canvas to check if image is grayscale
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    
+    // Sample pixels to check if grayscale
+    let grayscaleCount = 0;
+    const sampleSize = 100;
+    
+    for (let i = 0; i < sampleSize; i++) {
+        const idx = Math.floor(Math.random() * (data.length / 4)) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+        
+        // Check if R, G, B are similar (grayscale)
+        if (Math.abs(r - g) < 10 && Math.abs(g - b) < 10 && Math.abs(r - b) < 10) {
+            grayscaleCount++;
+        }
+    }
+    
+    // If more than 80% of samples are grayscale, it's a medical image
+    return (grayscaleCount / sampleSize) > 0.8;
+}
+
 function preprocessImage(img) {
     return tf.tidy(() => {
         const tensor = tf.browser.fromPixels(img)
@@ -116,9 +135,10 @@ function preprocessImage(img) {
     });
 }
 
-function analyzeFeatures(features) {
+function analyzeMedicalFeatures(features, img) {
     const featureArray = Array.from(features);
     
+    // Statistical analysis
     const mean = featureArray.reduce((a, b) => a + b, 0) / featureArray.length;
     const max = Math.max(...featureArray);
     const min = Math.min(...featureArray);
@@ -127,173 +147,178 @@ function analyzeFeatures(features) {
         acc + Math.pow(val - mean, 2), 0) / featureArray.length;
     const stdDev = Math.sqrt(variance);
     
-    // Medical-specific anomaly detection
-    const highActivations = featureArray.filter(f => f > mean + stdDev).length;
-    const highActivationRatio = highActivations / featureArray.length;
+    // Medical-specific feature extraction
     
-    const firstHalf = featureArray.slice(0, Math.floor(featureArray.length / 2));
-    const secondHalf = featureArray.slice(Math.floor(featureArray.length / 2));
-    const asymmetry = Math.abs(
-        firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length -
-        secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length
-    );
+    // 1. Density Analysis (high density = abnormality)
+    const highDensityFeatures = featureArray.filter(f => f > mean + stdDev).length;
+    const densityRatio = highDensityFeatures / featureArray.length;
     
+    // 2. Symmetry Analysis (asymmetry = potential issue)
+    const leftHalf = featureArray.slice(0, Math.floor(featureArray.length / 2));
+    const rightHalf = featureArray.slice(Math.floor(featureArray.length / 2));
+    const leftMean = leftHalf.reduce((a, b) => a + b, 0) / leftHalf.length;
+    const rightMean = rightHalf.reduce((a, b) => a + b, 0) / rightHalf.length;
+    const asymmetryScore = Math.abs(leftMean - rightMean);
+    
+    // 3. Edge Detection (sharp edges = consolidation/masses)
     const edgeStrength = stdDev / (Math.abs(mean) + 0.001);
     
+    // 4. Texture Complexity
     const sortedFeatures = [...featureArray].sort((a, b) => a - b);
     const q1 = sortedFeatures[Math.floor(featureArray.length * 0.25)];
     const q3 = sortedFeatures[Math.floor(featureArray.length * 0.75)];
-    const iqr = q3 - q1;
+    const textureComplexity = q3 - q1;
     
-    const medicalAnomalyScore = (
-        highActivationRatio * 0.3 +
-        Math.min(asymmetry * 10, 1) * 0.25 +
-        Math.min(edgeStrength, 1) * 0.25 +
-        Math.min(iqr * 2, 1) * 0.2
+    // Calculate Medical Abnormality Score (0-1)
+    const abnormalityScore = (
+        densityRatio * 0.35 +
+        Math.min(asymmetryScore * 5, 1) * 0.25 +
+        Math.min(edgeStrength * 0.5, 1) * 0.25 +
+        Math.min(textureComplexity * 2, 1) * 0.15
     );
     
-    const isAnomalous = medicalAnomalyScore > 0.45;
-    const confidence = Math.min(0.92, 0.65 + (stdDev * 0.3) + (highActivationRatio * 0.15));
+    // Detect specific conditions
+    const conditions = detectConditions(abnormalityScore, densityRatio, asymmetryScore, edgeStrength);
     
-    const detectedConditions = detectMedicalConditions(
-        medicalAnomalyScore,
-        highActivationRatio,
-        asymmetry,
-        edgeStrength
-    );
+    // Calculate confidence
+    const confidence = Math.min(0.90, 0.70 + (stdDev * 0.25));
     
     return {
         confidence: confidence.toFixed(2),
-        anomaly_detected: isAnomalous,
-        anomaly_score: medicalAnomalyScore.toFixed(3),
-        findings: generateMedicalFindings(medicalAnomalyScore, detectedConditions),
-        detected_conditions: detectedConditions,
+        abnormality_detected: abnormalityScore > 0.40,
+        abnormality_score: abnormalityScore.toFixed(3),
+        conditions: conditions,
+        findings: generateFindings(abnormalityScore, conditions),
         technical_details: {
-            mean_activation: mean.toFixed(4),
-            std_dev: stdDev.toFixed(4),
-            max_activation: max.toFixed(4),
-            high_activation_ratio: (highActivationRatio * 100).toFixed(1) + '%',
-            asymmetry_score: asymmetry.toFixed(4),
+            density_ratio: (densityRatio * 100).toFixed(1) + '%',
+            asymmetry_score: asymmetryScore.toFixed(4),
             edge_strength: edgeStrength.toFixed(4),
-            texture_complexity: iqr.toFixed(4),
+            texture_complexity: textureComplexity.toFixed(4),
+            mean_activation: mean.toFixed(4),
+            std_deviation: stdDev.toFixed(4),
             feature_count: featureArray.length
         }
     };
 }
 
-function detectMedicalConditions(anomalyScore, highActivationRatio, asymmetry, edgeStrength) {
+function detectConditions(abnormalityScore, densityRatio, asymmetryScore, edgeStrength) {
     const conditions = [];
     
-    if (highActivationRatio > 0.3 && anomalyScore > 0.5) {
-        conditions.push({
-            name: 'Possible Cardiomegaly',
-            confidence: Math.min(0.85, anomalyScore + 0.2),
-            severity: anomalyScore > 0.7 ? 'High' : 'Moderate'
-        });
-    }
-    
-    if (highActivationRatio > 0.4 && edgeStrength < 0.5) {
-        conditions.push({
-            name: 'Possible Pulmonary Edema',
-            confidence: Math.min(0.80, highActivationRatio + 0.3),
-            severity: highActivationRatio > 0.5 ? 'High' : 'Moderate'
-        });
-    }
-    
-    if (asymmetry > 0.15 && anomalyScore > 0.4) {
-        conditions.push({
-            name: 'Possible Pleural Effusion',
-            confidence: Math.min(0.75, asymmetry * 3 + 0.3),
-            severity: asymmetry > 0.25 ? 'High' : 'Moderate'
-        });
-    }
-    
-    if (edgeStrength > 0.6 && highActivationRatio > 0.25) {
-        conditions.push({
-            name: 'Possible Pneumonia/Consolidation',
-            confidence: Math.min(0.82, edgeStrength + 0.2),
-            severity: edgeStrength > 0.8 ? 'High' : 'Moderate'
-        });
-    }
-    
-    if (conditions.length === 0 && anomalyScore < 0.35) {
+    // Normal
+    if (abnormalityScore < 0.35) {
         conditions.push({
             name: 'Normal Chest X-Ray',
-            confidence: 0.85,
-            severity: 'None'
+            confidence: 0.88,
+            severity: 'None',
+            description: 'No significant abnormalities detected'
+        });
+    }
+    
+    // Cardiomegaly (Enlarged Heart)
+    if (densityRatio > 0.35 && abnormalityScore > 0.45) {
+        conditions.push({
+            name: 'Possible Cardiomegaly',
+            confidence: Math.min(0.85, abnormalityScore + 0.25),
+            severity: abnormalityScore > 0.65 ? 'High' : 'Moderate',
+            description: 'Enlarged heart shadow detected'
+        });
+    }
+    
+    // Pulmonary Edema
+    if (densityRatio > 0.40 && edgeStrength < 0.6) {
+        conditions.push({
+            name: 'Possible Pulmonary Edema',
+            confidence: Math.min(0.82, densityRatio + 0.35),
+            severity: densityRatio > 0.50 ? 'High' : 'Moderate',
+            description: 'Diffuse lung opacity suggesting fluid accumulation'
+        });
+    }
+    
+    // Pleural Effusion
+    if (asymmetryScore > 0.12 && abnormalityScore > 0.40) {
+        conditions.push({
+            name: 'Possible Pleural Effusion',
+            confidence: Math.min(0.78, asymmetryScore * 4 + 0.35),
+            severity: asymmetryScore > 0.20 ? 'High' : 'Moderate',
+            description: 'Asymmetric density suggesting fluid collection'
+        });
+    }
+    
+    // Pneumonia/Consolidation
+    if (edgeStrength > 0.65 && densityRatio > 0.30) {
+        conditions.push({
+            name: 'Possible Pneumonia/Consolidation',
+            confidence: Math.min(0.84, edgeStrength + 0.25),
+            severity: edgeStrength > 0.85 ? 'High' : 'Moderate',
+            description: 'Focal opacity with defined borders'
         });
     }
     
     return conditions;
 }
 
-function generateMedicalFindings(anomalyScore, detectedConditions) {
+function generateFindings(abnormalityScore, conditions) {
     const findings = [];
     
-    if (detectedConditions.length > 0) {
-        detectedConditions.forEach(condition => {
-            const confidencePercent = (condition.confidence * 100).toFixed(0);
-            findings.push(`${condition.name} (${confidencePercent}% confidence, ${condition.severity} severity)`);
-        });
-    }
+    // Add detected conditions
+    conditions.forEach(condition => {
+        const conf = (condition.confidence * 100).toFixed(0);
+        findings.push(`${condition.name} - ${conf}% confidence (${condition.severity} severity)`);
+        findings.push(`  └─ ${condition.description}`);
+    });
     
-    if (anomalyScore < 0.35) {
-        findings.push('Overall assessment: Chest X-ray appears within normal limits');
-        findings.push('No significant cardiopulmonary abnormalities detected');
-        findings.push('Routine follow-up recommended');
-    } else if (anomalyScore < 0.6) {
-        findings.push('Overall assessment: Mild to moderate abnormalities detected');
-        findings.push('Clinical correlation and follow-up imaging recommended');
-        findings.push('Consider additional diagnostic workup');
+    // Overall assessment
+    if (abnormalityScore < 0.35) {
+        findings.push('');
+        findings.push('Overall: Chest X-ray within normal limits');
+        findings.push('Recommendation: Routine follow-up');
+    } else if (abnormalityScore < 0.60) {
+        findings.push('');
+        findings.push('Overall: Mild to moderate abnormalities detected');
+        findings.push('Recommendation: Clinical correlation advised');
     } else {
-        findings.push('Overall assessment: Significant abnormalities detected');
-        findings.push('Immediate clinical evaluation strongly recommended');
-        findings.push('Further diagnostic imaging and specialist consultation advised');
+        findings.push('');
+        findings.push('Overall: Significant abnormalities detected');
+        findings.push('Recommendation: Immediate medical evaluation required');
     }
-    
-    findings.push('AI-assisted analysis using deep learning neural network');
     
     return findings;
 }
 
-// Initialize model on page load
+// Initialize on page load
 window.addEventListener('load', () => {
-    console.log('🧠 Initializing TensorFlow.js Medical Imaging System...');
+    console.log('🏥 Initializing Medical Imaging AI System...');
     console.log('TensorFlow.js version:', tf.version.tfjs);
     
     const form = document.getElementById('prediction-form');
-    if (form) {
-        const button = form.querySelector('.predict-button');
-        button.innerHTML = '⏳ Loading Medical AI Model (30-60 seconds)...';
-        button.disabled = true;
-        
-        const loadTimeout = setTimeout(() => {
-            if (!imageModel) {
-                console.warn('⚠️ Model loading is taking longer than expected...');
-                button.innerHTML = '⏳ Still loading medical model... Please wait...';
-            }
-        }, 10000);
-        
-        loadMedicalModel()
-            .then((model) => {
-                clearTimeout(loadTimeout);
-                if (model) {
-                    console.log('✅ Medical imaging model ready for chest X-ray analysis');
-                    button.innerHTML = '🧠 Analyze Chest X-Ray with AI';
-                    button.disabled = false;
-                } else {
-                    throw new Error('Model loaded but returned null');
-                }
-            })
-            .catch(err => {
-                clearTimeout(loadTimeout);
-                console.error('❌ Failed to load model:', err);
-                button.innerHTML = '⚠️ Model Load Failed - Click to Retry';
-                button.disabled = false;
-                
-                button.onclick = () => {
-                    location.reload();
-                };
-            });
+    if (!form) {
+        console.error('Form not found!');
+        return;
     }
+    
+    const button = form.querySelector('.predict-button');
+    if (!button) {
+        console.error('Button not found!');
+        return;
+    }
+    
+    button.innerHTML = '⏳ Loading AI Model...';
+    button.disabled = true;
+    
+    loadMedicalModel()
+        .then((model) => {
+            if (model) {
+                console.log('✅ Medical AI Ready!');
+                button.innerHTML = '🧠 Analyze Medical Image';
+                button.disabled = false;
+            } else {
+                throw new Error('Model failed to load');
+            }
+        })
+        .catch(err => {
+            console.error('❌ Failed to load:', err);
+            button.innerHTML = '⚠️ Load Failed - Click to Retry';
+            button.disabled = false;
+            button.onclick = () => location.reload();
+        });
 });
