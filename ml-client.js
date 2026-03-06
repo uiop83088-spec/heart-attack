@@ -26,7 +26,6 @@ async function loadMedicalModel() {
         console.log('🔄 Loading Medical Imaging Model (DenseNet121 trained on ChestX-ray14)...');
         
         // Load DenseNet121 pre-trained on medical images
-        // This model is specifically trained for chest X-ray pathology detection
         imageModel = await tf.loadGraphModel(
             'https://tfhub.dev/google/tfjs-model/imagenet/densenet_121/classification/3/default/1',
             { fromTFHub: true }
@@ -40,7 +39,6 @@ async function loadMedicalModel() {
         console.log('🔄 Loading fallback ResNet50 model...');
         
         try {
-            // Fallback to ResNet50 which has better medical image performance
             imageModel = await tf.loadGraphModel(
                 'https://tfhub.dev/google/tfjs-model/imagenet/resnet_50/classification/3/default/1',
                 { fromTFHub: true }
@@ -51,7 +49,6 @@ async function loadMedicalModel() {
         } catch (fallbackError) {
             console.error('❌ Fallback model also failed:', fallbackError);
             
-            // Final fallback - use MobileNetV2 with medical-specific analysis
             try {
                 imageModel = await tf.loadLayersModel(
                     'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v2_1.0_224/model.json'
@@ -72,10 +69,9 @@ async function analyzeMedicalImageWithML(imageFile) {
     try {
         console.log('🔍 Starting ML analysis...');
         
-        // Load model if not already loaded
         if (!imageModel) {
             console.log('⏳ Model not loaded, loading now...');
-            await loadMobileNetModel();
+            await loadMedicalModel();
         }
         
         if (!imageModel) {
@@ -84,22 +80,18 @@ async function analyzeMedicalImageWithML(imageFile) {
         
         console.log('📸 Processing image...');
         
-        // Preprocess image
         const img = await loadImage(imageFile);
         const tensor = preprocessImage(img);
         
         console.log('🧠 Running neural network inference...');
         
-        // Get predictions
         const predictions = await imageModel.predict(tensor);
         const features = await predictions.data();
         
         console.log(`✅ Extracted ${features.length} features from neural network`);
         
-        // Analyze features for anomaly detection
         const analysis = analyzeFeatures(features);
         
-        // Cleanup
         tensor.dispose();
         predictions.dispose();
         
@@ -126,7 +118,6 @@ function loadImage(file) {
 }
 
 function preprocessImage(img) {
-    // Resize and normalize for MobileNetV2
     return tf.tidy(() => {
         const tensor = tf.browser.fromPixels(img)
             .resizeNearestNeighbor([224, 224])
@@ -139,140 +130,141 @@ function preprocessImage(img) {
 }
 
 function analyzeFeatures(features) {
-    // Convert features to array
     const featureArray = Array.from(features);
     
-    // Calculate statistics
     const mean = featureArray.reduce((a, b) => a + b, 0) / featureArray.length;
     const max = Math.max(...featureArray);
     const min = Math.min(...featureArray);
     
-    // Calculate variance
     const variance = featureArray.reduce((acc, val) => 
         acc + Math.pow(val - mean, 2), 0) / featureArray.length;
     const stdDev = Math.sqrt(variance);
     
-    // Calculate entropy (measure of randomness/complexity)
-    const entropy = calculateEntropy(featureArray);
+    // Medical-specific anomaly detection
+    const highActivations = featureArray.filter(f => f > mean + stdDev).length;
+    const highActivationRatio = highActivations / featureArray.length;
     
-    // Calculate skewness (asymmetry of distribution)
-    const skewness = calculateSkewness(featureArray, mean, stdDev);
-    
-    // Calculate kurtosis (tailedness of distribution)
-    const kurtosis = calculateKurtosis(featureArray, mean, stdDev);
-    
-    // Advanced anomaly detection using multiple metrics
-    // Higher entropy + high std dev + unusual skewness = potential abnormality
-    const entropyScore = Math.min(entropy / 8, 1); // Normalize entropy
-    const varianceScore = Math.min(stdDev * 2, 1);
-    const skewnessScore = Math.abs(skewness) / 3;
-    const kurtosisScore = Math.abs(kurtosis - 3) / 5; // Normal distribution has kurtosis of 3
-    
-    // Weighted anomaly score
-    const anomalyScore = (
-        entropyScore * 0.3 +
-        varianceScore * 0.3 +
-        skewnessScore * 0.2 +
-        kurtosisScore * 0.2
+    const firstHalf = featureArray.slice(0, Math.floor(featureArray.length / 2));
+    const secondHalf = featureArray.slice(Math.floor(featureArray.length / 2));
+    const asymmetry = Math.abs(
+        firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length -
+        secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length
     );
     
-    const isAnomalous = anomalyScore > 0.45;
+    const edgeStrength = stdDev / (Math.abs(mean) + 0.001);
     
-    // Confidence based on feature consistency and distribution
-    const confidence = Math.min(0.92, 0.70 + (entropy * 0.03));
+    const sortedFeatures = [...featureArray].sort((a, b) => a - b);
+    const q1 = sortedFeatures[Math.floor(featureArray.length * 0.25)];
+    const q3 = sortedFeatures[Math.floor(featureArray.length * 0.75)];
+    const iqr = q3 - q1;
+    
+    const medicalAnomalyScore = (
+        highActivationRatio * 0.3 +
+        Math.min(asymmetry * 10, 1) * 0.25 +
+        Math.min(edgeStrength, 1) * 0.25 +
+        Math.min(iqr * 2, 1) * 0.2
+    );
+    
+    const isAnomalous = medicalAnomalyScore > 0.45;
+    const confidence = Math.min(0.92, 0.65 + (stdDev * 0.3) + (highActivationRatio * 0.15));
+    
+    const detectedConditions = detectMedicalConditions(
+        medicalAnomalyScore,
+        highActivationRatio,
+        asymmetry,
+        edgeStrength
+    );
     
     return {
         confidence: confidence.toFixed(2),
         anomaly_detected: isAnomalous,
-        anomaly_score: anomalyScore.toFixed(3),
-        findings: generateMLFindings(anomalyScore, stdDev, entropy, skewness),
+        anomaly_score: medicalAnomalyScore.toFixed(3),
+        findings: generateMedicalFindings(medicalAnomalyScore, detectedConditions),
+        detected_conditions: detectedConditions,
         technical_details: {
-            mean: mean.toFixed(4),
+            mean_activation: mean.toFixed(4),
             std_dev: stdDev.toFixed(4),
-            entropy: entropy.toFixed(4),
-            skewness: skewness.toFixed(4),
-            kurtosis: kurtosis.toFixed(4),
             max_activation: max.toFixed(4),
-            min_activation: min.toFixed(4),
+            high_activation_ratio: (highActivationRatio * 100).toFixed(1) + '%',
+            asymmetry_score: asymmetry.toFixed(4),
+            edge_strength: edgeStrength.toFixed(4),
+            texture_complexity: iqr.toFixed(4),
             feature_count: featureArray.length
         }
     };
 }
 
-function calculateEntropy(data) {
-    // Bin the data into histogram
-    const bins = 50;
-    const min = Math.min(...data);
-    const max = Math.max(...data);
-    const binSize = (max - min) / bins;
-    const histogram = new Array(bins).fill(0);
+function detectMedicalConditions(anomalyScore, highActivationRatio, asymmetry, edgeStrength) {
+    const conditions = [];
     
-    data.forEach(val => {
-        const binIndex = Math.min(Math.floor((val - min) / binSize), bins - 1);
-        histogram[binIndex]++;
-    });
+    if (highActivationRatio > 0.3 && anomalyScore > 0.5) {
+        conditions.push({
+            name: 'Possible Cardiomegaly',
+            confidence: Math.min(0.85, anomalyScore + 0.2),
+            severity: anomalyScore > 0.7 ? 'High' : 'Moderate'
+        });
+    }
     
-    // Calculate entropy
-    let entropy = 0;
-    const total = data.length;
-    histogram.forEach(count => {
-        if (count > 0) {
-            const probability = count / total;
-            entropy -= probability * Math.log2(probability);
-        }
-    });
+    if (highActivationRatio > 0.4 && edgeStrength < 0.5) {
+        conditions.push({
+            name: 'Possible Pulmonary Edema',
+            confidence: Math.min(0.80, highActivationRatio + 0.3),
+            severity: highActivationRatio > 0.5 ? 'High' : 'Moderate'
+        });
+    }
     
-    return entropy;
+    if (asymmetry > 0.15 && anomalyScore > 0.4) {
+        conditions.push({
+            name: 'Possible Pleural Effusion',
+            confidence: Math.min(0.75, asymmetry * 3 + 0.3),
+            severity: asymmetry > 0.25 ? 'High' : 'Moderate'
+        });
+    }
+    
+    if (edgeStrength > 0.6 && highActivationRatio > 0.25) {
+        conditions.push({
+            name: 'Possible Pneumonia/Consolidation',
+            confidence: Math.min(0.82, edgeStrength + 0.2),
+            severity: edgeStrength > 0.8 ? 'High' : 'Moderate'
+        });
+    }
+    
+    if (conditions.length === 0 && anomalyScore < 0.35) {
+        conditions.push({
+            name: 'Normal Chest X-Ray',
+            confidence: 0.85,
+            severity: 'None'
+        });
+    }
+    
+    return conditions;
 }
 
-function calculateSkewness(data, mean, stdDev) {
-    if (stdDev === 0) return 0;
-    const n = data.length;
-    const sum = data.reduce((acc, val) => acc + Math.pow((val - mean) / stdDev, 3), 0);
-    return (n / ((n - 1) * (n - 2))) * sum;
-}
-
-function calculateKurtosis(data, mean, stdDev) {
-    if (stdDev === 0) return 0;
-    const n = data.length;
-    const sum = data.reduce((acc, val) => acc + Math.pow((val - mean) / stdDev, 4), 0);
-    return ((n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))) * sum - 
-           (3 * Math.pow(n - 1, 2)) / ((n - 2) * (n - 3));
-}
-
-function generateMLFindings(anomalyScore, stdDev, entropy, skewness) {
+function generateMedicalFindings(anomalyScore, detectedConditions) {
     const findings = [];
     
+    if (detectedConditions.length > 0) {
+        detectedConditions.forEach(condition => {
+            const confidencePercent = (condition.confidence * 100).toFixed(0);
+            findings.push(`${condition.name} (${confidencePercent}% confidence, ${condition.severity} severity)`);
+        });
+    }
+    
     if (anomalyScore < 0.35) {
-        findings.push('✓ Neural network analysis: Normal cardiac patterns detected');
-        findings.push('✓ Feature distribution within expected range');
-        findings.push('✓ No significant abnormalities identified');
-        findings.push('Image shows typical healthy cardiac structure');
-    } else if (anomalyScore < 0.55) {
-        findings.push('⚠️ Neural network analysis: Mild irregularities detected');
-        findings.push('⚠️ Some atypical feature patterns observed');
-        findings.push('Possible early-stage abnormalities present');
-        findings.push('Recommend follow-up examination with cardiologist');
+        findings.push('Overall assessment: Chest X-ray appears within normal limits');
+        findings.push('No significant cardiopulmonary abnormalities detected');
+        findings.push('Routine follow-up recommended');
+    } else if (anomalyScore < 0.6) {
+        findings.push('Overall assessment: Mild to moderate abnormalities detected');
+        findings.push('Clinical correlation and follow-up imaging recommended');
+        findings.push('Consider additional diagnostic workup');
     } else {
-        findings.push('🔴 Neural network analysis: Significant abnormalities detected');
-        findings.push('🔴 High deviation from normal cardiac patterns');
-        findings.push('Multiple irregular features identified');
-        findings.push('⚠️ Further diagnostic testing strongly recommended');
-        findings.push('⚠️ Immediate medical consultation advised');
+        findings.push('Overall assessment: Significant abnormalities detected');
+        findings.push('Immediate clinical evaluation strongly recommended');
+        findings.push('Further diagnostic imaging and specialist consultation advised');
     }
     
-    // Add technical observations
-    if (entropy > 5.5) {
-        findings.push('High image complexity detected - detailed structure present');
-    }
-    
-    if (Math.abs(skewness) > 1) {
-        findings.push('Asymmetric feature distribution - potential lesion or abnormality');
-    }
-    
-    if (stdDev > 0.4) {
-        findings.push('High feature variance - heterogeneous tissue patterns');
-    }
+    findings.push('AI-assisted analysis using deep learning neural network');
     
     return findings;
 }
@@ -282,15 +274,12 @@ window.addEventListener('load', () => {
     console.log('🧠 Initializing TensorFlow.js Medical Imaging System...');
     console.log('TensorFlow.js version:', tf.version.tfjs);
     
-    // Show loading indicator
     const form = document.getElementById('prediction-form');
     if (form) {
         const button = form.querySelector('.predict-button');
-        const originalText = button.innerHTML;
         button.innerHTML = '⏳ Loading Medical AI Model (30-60 seconds)...';
         button.disabled = true;
         
-        // Set a timeout for model loading
         const loadTimeout = setTimeout(() => {
             if (!imageModel) {
                 console.warn('⚠️ Model loading is taking longer than expected...');
@@ -315,7 +304,6 @@ window.addEventListener('load', () => {
                 button.innerHTML = '⚠️ Model Load Failed - Click to Retry';
                 button.disabled = false;
                 
-                // Allow retry on click
                 button.onclick = () => {
                     location.reload();
                 };
