@@ -27,7 +27,7 @@ document.getElementById('medical-image').addEventListener('change', function(e) 
     }
 });
 
-// Deep Learning Analysis - Image Only
+// Deep Learning Analysis - Medical Chest X-Ray Only
 document.getElementById('prediction-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     
@@ -36,7 +36,7 @@ document.getElementById('prediction-form').addEventListener('submit', async func
     const imageFile = document.getElementById('medical-image').files[0];
     
     if (!imageFile) {
-        alert('⚠️ Please upload a medical image first');
+        alert('⚠️ Please upload a chest X-ray image first');
         return;
     }
     
@@ -46,7 +46,7 @@ document.getElementById('prediction-form').addEventListener('submit', async func
         return;
     }
     
-    predictButton.innerHTML = '🧠 Running MobileNetV2 Deep Learning...';
+    predictButton.innerHTML = '🏥 Analyzing Chest X-Ray with Medical AI...';
     predictButton.disabled = true;
     
     try {
@@ -55,19 +55,19 @@ document.getElementById('prediction-form').addEventListener('submit', async func
             throw new Error('TensorFlow.js not loaded. Please refresh the page.');
         }
         
-        // Check if ML function exists
-        if (typeof analyzeMedicalImageWithML === 'undefined') {
-            throw new Error('ML analysis function not available. Please refresh the page.');
+        // Check if medical analysis function exists
+        if (typeof analyzeMedicalChestXray === 'undefined') {
+            throw new Error('Medical analysis system not loaded. Please refresh the page.');
         }
         
-        console.log('Starting analysis...');
-        const mlResult = await analyzeMedicalImageWithML(imageFile);
+        console.log('Starting medical chest X-ray analysis...');
+        const mlResult = await analyzeMedicalChestXray(imageFile);
         
         if (!mlResult) {
-            throw new Error('ML analysis returned no results. The model may not be loaded properly.');
+            throw new Error('Medical analysis returned no results.');
         }
         
-        console.log('Analysis successful:', mlResult);
+        console.log('Medical analysis successful:', mlResult);
         
         // Display results
         displayMLResults(mlResult);
@@ -78,9 +78,9 @@ document.getElementById('prediction-form').addEventListener('submit', async func
         
     } catch (error) {
         console.error('Analysis error:', error);
-        alert('❌ Analysis Error:\n\n' + error.message + '\n\nPlease try:\n1. Refresh the page\n2. Check your internet connection\n3. Try a different image');
+        alert('❌ Analysis Error:\n\n' + error.message + '\n\nPlease try:\n1. Refresh the page\n2. Check your internet connection\n3. Use a chest X-ray image');
     } finally {
-        predictButton.innerHTML = '🧠 Analyze with MobileNetV2 Deep Learning';
+        predictButton.innerHTML = '🧠 Analyze Chest X-Ray with AI';
         predictButton.disabled = false;
     }
 });
