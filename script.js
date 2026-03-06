@@ -87,7 +87,7 @@ document.getElementById('prediction-form').addEventListener('submit', async func
 
 function displayMLResults(mlResult) {
     // Calculate risk score from ML analysis
-    const riskScore = (parseFloat(mlResult.anomaly_score) * 100).toFixed(1);
+    const riskScore = (parseFloat(mlResult.abnormality_score) * 100).toFixed(1);
     
     document.getElementById('risk-percentage').textContent = riskScore;
     
@@ -112,22 +112,23 @@ function displayMLResults(mlResult) {
     const confidence = (parseFloat(mlResult.confidence) * 100).toFixed(1);
     
     let detailHTML = `
-        <h4>🏥 Medical AI Analysis - Chest X-Ray Pathology Detection</h4>
+        <h4>🏥 Medical AI Analysis - Chest X-Ray & ECG Pathology Detection</h4>
         <div class="prediction-item">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                 <strong>Deep Learning Medical Analysis</strong>
-                <span class="ml-badge">DenseNet121 Medical</span>
+                <span class="ml-badge">MobileNetV2 Medical</span>
             </div>
             <p><strong>Overall Confidence:</strong> ${confidence}%</p>
-            <p><strong>Pathology Status:</strong> ${mlResult.anomaly_detected ? '⚠️ Abnormalities Detected' : '✓ Normal Chest X-Ray'}</p>
-            <p><strong>Abnormality Score:</strong> ${mlResult.anomaly_score} (0-1 scale)</p>
+            <p><strong>Pathology Status:</strong> ${mlResult.abnormality_detected ? '⚠️ Abnormalities Detected' : '✓ Normal Medical Image'}</p>
+            <p><strong>Abnormality Score:</strong> ${mlResult.abnormality_score} (0-1 scale)</p>
             
             <h5 style="margin-top: 1.5rem;">🔍 Detected Conditions:</h5>
             <div style="background: #fff3cd; padding: 1rem; border-radius: 5px; border-left: 4px solid #ffc107; margin-bottom: 1rem;">
-                ${mlResult.detected_conditions.map(cond => `
+                ${mlResult.conditions.map(cond => `
                     <div style="margin-bottom: 0.5rem;">
                         <strong>${cond.name}</strong><br>
-                        <small>Confidence: ${(cond.confidence * 100).toFixed(0)}% | Severity: ${cond.severity}</small>
+                        <small>Confidence: ${(cond.confidence * 100).toFixed(0)}% | Severity: ${cond.severity}</small><br>
+                        <small style="color: #666;">${cond.description}</small>
                     </div>
                 `).join('<hr style="margin: 0.5rem 0;">')}
             </div>
@@ -138,12 +139,13 @@ function displayMLResults(mlResult) {
             <h5 style="margin-top: 1.5rem;">🔬 Technical Analysis:</h5>
             <div style="background: #f8f9fa; padding: 1rem; border-radius: 5px; font-size: 0.9rem;">
                 <p><strong>Feature Count:</strong> ${mlResult.technical_details.feature_count}</p>
-                <p><strong>Mean Activation:</strong> ${mlResult.technical_details.mean_activation}</p>
-                <p><strong>High Activation Ratio:</strong> ${mlResult.technical_details.high_activation_ratio}</p>
+                <p><strong>Density Ratio:</strong> ${mlResult.technical_details.density_ratio}</p>
                 <p><strong>Asymmetry Score:</strong> ${mlResult.technical_details.asymmetry_score}</p>
                 <p><strong>Edge Strength:</strong> ${mlResult.technical_details.edge_strength}</p>
                 <p><strong>Texture Complexity:</strong> ${mlResult.technical_details.texture_complexity}</p>
-                <p><strong>Processing:</strong> Client-side Neural Network</p>
+                <p><strong>Mean Activation:</strong> ${mlResult.technical_details.mean_activation}</p>
+                <p><strong>Std Deviation:</strong> ${mlResult.technical_details.std_deviation}</p>
+                <p><strong>Processing:</strong> Client-side Neural Network (MobileNetV2)</p>
             </div>
         </div>
     `;

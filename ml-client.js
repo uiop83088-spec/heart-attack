@@ -170,11 +170,12 @@ function analyzeMedicalFeatures(features, img) {
     const textureComplexity = q3 - q1;
     
     // Calculate Medical Abnormality Score (0-1)
+    // Weighted more heavily toward density and edge features for pathology detection
     const abnormalityScore = (
-        densityRatio * 0.35 +
-        Math.min(asymmetryScore * 5, 1) * 0.25 +
-        Math.min(edgeStrength * 0.5, 1) * 0.25 +
-        Math.min(textureComplexity * 2, 1) * 0.15
+        densityRatio * 0.40 +                              // Increased weight for density
+        Math.min(asymmetryScore * 6, 1) * 0.30 +          // Increased sensitivity to asymmetry
+        Math.min(edgeStrength * 0.6, 1) * 0.20 +          // Edge detection for masses
+        Math.min(textureComplexity * 2.5, 1) * 0.10       // Texture complexity
     );
     
     // Detect specific conditions
@@ -185,7 +186,7 @@ function analyzeMedicalFeatures(features, img) {
     
     return {
         confidence: confidence.toFixed(2),
-        abnormality_detected: abnormalityScore > 0.40,
+        abnormality_detected: abnormalityScore > 0.30,  // More sensitive threshold
         abnormality_score: abnormalityScore.toFixed(3),
         conditions: conditions,
         findings: generateFindings(abnormalityScore, conditions),
@@ -204,53 +205,74 @@ function analyzeMedicalFeatures(features, img) {
 function detectConditions(abnormalityScore, densityRatio, asymmetryScore, edgeStrength) {
     const conditions = [];
     
-    // Normal
-    if (abnormalityScore < 0.35) {
+    // Normal - stricter threshold
+    if (abnormalityScore < 0.30) {
         conditions.push({
             name: 'Normal Chest X-Ray',
             confidence: 0.88,
             severity: 'None',
             description: 'No significant abnormalities detected'
         });
+        return conditions; // Return early for normal cases
     }
     
-    // Cardiomegaly (Enlarged Heart)
-    if (densityRatio > 0.35 && abnormalityScore > 0.45) {
+    // Cardiomegaly (Enlarged Heart) - more sensitive
+    if (densityRatio > 0.30 && abnormalityScore > 0.40) {
         conditions.push({
             name: 'Possible Cardiomegaly',
-            confidence: Math.min(0.85, abnormalityScore + 0.25),
-            severity: abnormalityScore > 0.65 ? 'High' : 'Moderate',
-            description: 'Enlarged heart shadow detected'
+            confidence: Math.min(0.87, abnormalityScore + 0.30),
+            severity: abnormalityScore > 0.60 ? 'High' : 'Moderate',
+            description: 'Enlarged heart shadow detected - cardiothoracic ratio may be increased'
         });
     }
     
-    // Pulmonary Edema
-    if (densityRatio > 0.40 && edgeStrength < 0.6) {
+    // Pulmonary Edema - more sensitive
+    if (densityRatio > 0.35 && edgeStrength < 0.65) {
         conditions.push({
             name: 'Possible Pulmonary Edema',
-            confidence: Math.min(0.82, densityRatio + 0.35),
-            severity: densityRatio > 0.50 ? 'High' : 'Moderate',
-            description: 'Diffuse lung opacity suggesting fluid accumulation'
+            confidence: Math.min(0.84, densityRatio + 0.40),
+            severity: densityRatio > 0.45 ? 'High' : 'Moderate',
+            description: 'Diffuse bilateral lung opacity suggesting fluid accumulation'
         });
     }
     
-    // Pleural Effusion
-    if (asymmetryScore > 0.12 && abnormalityScore > 0.40) {
+    // Pleural Effusion - more sensitive
+    if (asymmetryScore > 0.10 && abnormalityScore > 0.35) {
         conditions.push({
             name: 'Possible Pleural Effusion',
-            confidence: Math.min(0.78, asymmetryScore * 4 + 0.35),
-            severity: asymmetryScore > 0.20 ? 'High' : 'Moderate',
-            description: 'Asymmetric density suggesting fluid collection'
+            confidence: Math.min(0.80, asymmetryScore * 5 + 0.40),
+            severity: asymmetryScore > 0.18 ? 'High' : 'Moderate',
+            description: 'Asymmetric density suggesting fluid collection in pleural space'
         });
     }
     
-    // Pneumonia/Consolidation
-    if (edgeStrength > 0.65 && densityRatio > 0.30) {
+    // Pneumonia/Consolidation - more sensitive
+    if (edgeStrength > 0.60 && densityRatio > 0.28) {
         conditions.push({
             name: 'Possible Pneumonia/Consolidation',
-            confidence: Math.min(0.84, edgeStrength + 0.25),
-            severity: edgeStrength > 0.85 ? 'High' : 'Moderate',
-            description: 'Focal opacity with defined borders'
+            confidence: Math.min(0.86, edgeStrength + 0.30),
+            severity: edgeStrength > 0.80 ? 'High' : 'Moderate',
+            description: 'Focal opacity with defined borders suggesting consolidation'
+        });
+    }
+    
+    // Atelectasis (Lung Collapse)
+    if (asymmetryScore > 0.15 && densityRatio > 0.32) {
+        conditions.push({
+            name: 'Possible Atelectasis',
+            confidence: Math.min(0.78, (asymmetryScore + densityRatio) * 0.5 + 0.30),
+            severity: asymmetryScore > 0.22 ? 'High' : 'Moderate',
+            description: 'Volume loss and increased density suggesting lung collapse'
+        });
+    }
+    
+    // If no specific conditions detected but abnormality score is high
+    if (conditions.length === 0 && abnormalityScore >= 0.30) {
+        conditions.push({
+            name: 'Unspecified Abnormality',
+            confidence: Math.min(0.75, abnormalityScore + 0.25),
+            severity: abnormalityScore > 0.55 ? 'High' : 'Moderate',
+            description: 'Abnormal findings detected - further clinical evaluation recommended'
         });
     }
     
@@ -268,19 +290,22 @@ function generateFindings(abnormalityScore, conditions) {
     });
     
     // Overall assessment
-    if (abnormalityScore < 0.35) {
+    if (abnormalityScore < 0.30) {
         findings.push('');
         findings.push('Overall: Chest X-ray within normal limits');
-        findings.push('Recommendation: Routine follow-up');
-    } else if (abnormalityScore < 0.60) {
+        findings.push('Recommendation: Routine follow-up as scheduled');
+    } else if (abnormalityScore < 0.55) {
         findings.push('');
         findings.push('Overall: Mild to moderate abnormalities detected');
-        findings.push('Recommendation: Clinical correlation advised');
+        findings.push('Recommendation: Clinical correlation and follow-up imaging advised');
     } else {
         findings.push('');
         findings.push('Overall: Significant abnormalities detected');
-        findings.push('Recommendation: Immediate medical evaluation required');
+        findings.push('Recommendation: Immediate medical evaluation and further diagnostic workup required');
     }
+    
+    findings.push('');
+    findings.push('⚠️ DISCLAIMER: This is an AI-assisted screening tool. All findings must be confirmed by a qualified radiologist or physician.');
     
     return findings;
 }

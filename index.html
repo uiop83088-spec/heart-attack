@@ -79,16 +79,19 @@
 
     <section id="demo" class="demo">
         <div class="container">
-            <h2>AI-Powered Heart Disease Detection</h2>
+            <h2>AI-Powered Medical Image Analysis</h2>
             <p style="text-align: center; margin-bottom: 2rem; opacity: 0.9;">
-                Upload medical images (X-Ray, CT Scan, ECG Image, MRI) for deep learning analysis
+                Upload BLACK & WHITE medical images only (Chest X-Ray or ECG Graph)
             </p>
             <div class="demo-form">
                 <form id="prediction-form" enctype="multipart/form-data">
                     <div class="form-section">
                         <h3>📸 Upload Medical Image</h3>
-                        <p style="font-size: 0.9rem; opacity: 0.8; margin-bottom: 1rem;">
-                            Supported: Chest X-Ray, CT Scan, ECG Image, Cardiac MRI
+                        <p style="font-size: 0.9rem; opacity: 0.8; margin-bottom: 1rem; color: #ff6b6b;">
+                            ⚠️ ONLY Black & White Images: Chest X-Ray or ECG Graph
+                        </p>
+                        <p style="font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem;">
+                            Colored images will be rejected. The AI is trained specifically for grayscale medical imaging.
                         </p>
                         <input type="file" name="medical_image" accept="image/*" id="medical-image" required>
                         <label for="medical-image" class="file-label">Choose Medical Image</label>
@@ -96,7 +99,7 @@
                     </div>
                     
                     <button type="submit" class="predict-button">
-                        🧠 Analyze with MobileNetV2 Deep Learning
+                        🧠 Analyze Medical Image
                     </button>
                 </form>
                 
