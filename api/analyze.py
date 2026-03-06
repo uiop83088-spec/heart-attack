@@ -1,7 +1,4 @@
-"""
-Serverless function for medical chest X-ray analysis using real medical models
-This runs on Vercel's Python runtime with actual medical imaging models
-"""
+from http.server import BaseHTTPRequestHandler
 import json
 import base64
 import io
@@ -9,14 +6,13 @@ import numpy as np
 from PIL import Image
 import sys
 
-# Try to import medical imaging libraries
+# Try to import scipy
 try:
-    import torch
-    import torchvision.transforms as transforms
-    TORCH_AVAILABLE = True
+    from scipy import ndimage
+    SCIPY_AVAILABLE = True
 except ImportError:
-    TORCH_AVAILABLE = False
-    print("PyTorch not available", file=sys.stderr)
+    SCIPY_AVAILABLE = False
+    print("SciPy not available, using alternative edge detection", file=sys.stderr)
 
 def validate_medical_image(img):
     """
@@ -113,9 +109,14 @@ def analyze_with_heuristics(img):
     lung_density = np.mean(pixels < 0.5)
     
     # Edge detection for consolidation
-    from scipy import ndimage
-    edges = ndimage.sobel(pixels)
-    edge_strength = np.mean(np.abs(edges))
+    if SCIPY_AVAILABLE:
+        edges = ndimage.sobel(pixels)
+        edge_strength = np.mean(np.abs(edges))
+    else:
+        # Simple edge detection without scipy
+        edges_x = np.diff(pixels, axis=1)
+        edges_y = np.diff(pixels, axis=0)
+        edge_strength = (np.mean(np.abs(edges_x)) + np.mean(np.abs(edges_y))) / 2
     
     # Texture analysis
     texture_variance = np.var(pixels)
@@ -209,97 +210,84 @@ def analyze_with_heuristics(img):
     }
 
 
-def handler(event, context):
+class handler(BaseHTTPRequestHandler):
     """
     Vercel serverless function handler
     """
-    try:
-        # Parse request
-        if event.get('httpMethod') == 'OPTIONS':
-            return {
-                'statusCode': 200,
-                'headers': {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                    'Access-Control-Allow-Headers': 'Content-Type'
-                },
-                'body': ''
-            }
-        
-        body = json.loads(event.get('body', '{}'))
-        
-        if 'image' not in body:
-            return {
-                'statusCode': 400,
-                'headers': {'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'error': 'No image data provided'})
-            }
-        
-        # Decode base64 image
-        image_data = body['image'].split(',')[1] if ',' in body['image'] else body['image']
-        image_bytes = base64.b64decode(image_data)
-        img = Image.open(io.BytesIO(image_bytes))
-        
-        # Validate if it's a medical image
-        is_valid, validation_confidence, validation_reason = validate_medical_image(img)
-        
-        if not is_valid:
-            return {
-                'statusCode': 400,
-                'headers': {'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+    
+    def do_POST(self):
+        try:
+            # Read request body
+            content_length = int(self.headers['Content-Length'])
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            
+            if 'image' not in data:
+                self.send_error_response(400, {'error': 'No image data provided'})
+                return
+            
+            # Decode base64 image
+            image_data = data['image'].split(',')[1] if ',' in data['image'] else data['image']
+            image_bytes = base64.b64decode(image_data)
+            img = Image.open(io.BytesIO(image_bytes))
+            
+            # Validate if it's a medical image
+            is_valid, validation_confidence, validation_reason = validate_medical_image(img)
+            
+            if not is_valid:
+                self.send_error_response(400, {
                     'error': 'Invalid medical image',
                     'reason': validation_reason,
                     'confidence': validation_confidence,
                     'suggestion': 'Please upload a chest X-ray image (grayscale medical imaging)'
                 })
-            }
-        
-        # Analyze the image
-        analysis = analyze_with_heuristics(img)
-        
-        # Generate medical report
-        findings = []
-        findings.append('=== CHEST X-RAY ANALYSIS REPORT ===')
-        findings.append('')
-        findings.append('FINDINGS:')
-        
-        for i, condition in enumerate(analysis['conditions'], 1):
-            confidence_pct = int(condition['confidence'] * 100)
-            findings.append(f"{i}. {condition['name']}")
-            findings.append(f"   - Confidence: {confidence_pct}%")
-            findings.append(f"   - Severity: {condition['severity']}")
-            findings.append(f"   - {condition['description']}")
+                return
+            
+            # Analyze the image
+            analysis = analyze_with_heuristics(img)
+            
+            # Generate medical report
+            findings = []
+            findings.append('=== CHEST X-RAY ANALYSIS REPORT ===')
             findings.append('')
-        
-        findings.append('IMPRESSION:')
-        risk = analysis['risk_score']
-        if risk < 0.30:
-            findings.append('- Chest X-ray within normal limits')
-            findings.append('- No acute cardiopulmonary abnormality')
-            findings.append('- Routine follow-up recommended')
-        elif risk < 0.60:
-            findings.append('- Mild to moderate abnormalities detected')
-            findings.append('- Clinical correlation recommended')
-            findings.append('- Consider follow-up imaging in 3-6 months')
-        else:
-            findings.append('- Significant abnormalities detected')
-            findings.append('- IMMEDIATE clinical evaluation recommended')
-            findings.append('- Further diagnostic workup advised')
-            findings.append('- Specialist consultation recommended')
-        
-        findings.append('')
-        findings.append('NOTE: This is an AI-assisted analysis using medical imaging algorithms.')
-        findings.append('Final diagnosis must be made by a qualified radiologist.')
-        
-        # Return results
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Origin': '*',
-                'Content-Type': 'application/json'
-            },
-            'body': json.dumps({
+            findings.append('FINDINGS:')
+            
+            for i, condition in enumerate(analysis['conditions'], 1):
+                confidence_pct = int(condition['confidence'] * 100)
+                findings.append(f"{i}. {condition['name']}")
+                findings.append(f"   - Confidence: {confidence_pct}%")
+                findings.append(f"   - Severity: {condition['severity']}")
+                findings.append(f"   - {condition['description']}")
+                findings.append('')
+            
+            findings.append('IMPRESSION:')
+            risk = analysis['risk_score']
+            if risk < 0.30:
+                findings.append('- Chest X-ray within normal limits')
+                findings.append('- No acute cardiopulmonary abnormality')
+                findings.append('- Routine follow-up recommended')
+            elif risk < 0.60:
+                findings.append('- Mild to moderate abnormalities detected')
+                findings.append('- Clinical correlation recommended')
+                findings.append('- Consider follow-up imaging in 3-6 months')
+            else:
+                findings.append('- Significant abnormalities detected')
+                findings.append('- IMMEDIATE clinical evaluation recommended')
+                findings.append('- Further diagnostic workup advised')
+                findings.append('- Specialist consultation recommended')
+            
+            findings.append('')
+            findings.append('NOTE: This is an AI-assisted analysis using medical imaging algorithms.')
+            findings.append('Final diagnosis must be made by a qualified radiologist.')
+            
+            # Return results
+            response_data = {
                 'success': True,
                 'validation': {
                     'is_medical_image': is_valid,
@@ -314,16 +302,27 @@ def handler(event, context):
                     'detected_conditions': analysis['conditions'],
                     'technical_details': analysis['technical_details']
                 }
-            })
-        }
-        
-    except Exception as e:
-        import traceback
-        return {
-            'statusCode': 500,
-            'headers': {'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({
+            }
+            
+            self.send_success_response(response_data)
+            
+        except Exception as e:
+            import traceback
+            self.send_error_response(500, {
                 'error': str(e),
                 'traceback': traceback.format_exc()
             })
-        }
+    
+    def send_success_response(self, data):
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode('utf-8'))
+    
+    def send_error_response(self, status_code, data):
+        self.send_response(status_code)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode('utf-8'))
