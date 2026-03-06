@@ -1,7 +1,9 @@
 {
-  "functions": {
-    "api/analyze.py": {
-      "runtime": "python3.9"
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/analyze.py",
+      "use": "@vercel/python"
     }
-  }
+  ]
 }
