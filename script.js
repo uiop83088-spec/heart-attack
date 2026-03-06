@@ -36,7 +36,13 @@ document.getElementById('prediction-form').addEventListener('submit', async func
     const imageFile = document.getElementById('medical-image').files[0];
     
     if (!imageFile) {
-        alert('Please upload a medical image');
+        alert('⚠️ Please upload a medical image first');
+        return;
+    }
+    
+    // Check file size
+    if (imageFile.size > 10 * 1024 * 1024) {
+        alert('⚠️ Image too large. Please use an image smaller than 10MB');
         return;
     }
     
@@ -44,24 +50,35 @@ document.getElementById('prediction-form').addEventListener('submit', async func
     predictButton.disabled = true;
     
     try {
-        // Run MobileNetV2 analysis
-        if (typeof analyzeMedicalImageWithML === 'undefined') {
-            throw new Error('ML model not loaded. Please refresh the page.');
+        // Check if TensorFlow.js is loaded
+        if (typeof tf === 'undefined') {
+            throw new Error('TensorFlow.js not loaded. Please refresh the page.');
         }
         
+        // Check if ML function exists
+        if (typeof analyzeMedicalImageWithML === 'undefined') {
+            throw new Error('ML analysis function not available. Please refresh the page.');
+        }
+        
+        console.log('Starting analysis...');
         const mlResult = await analyzeMedicalImageWithML(imageFile);
         
         if (!mlResult) {
-            throw new Error('ML analysis failed');
+            throw new Error('ML analysis returned no results. The model may not be loaded properly.');
         }
+        
+        console.log('Analysis successful:', mlResult);
         
         // Display results
         displayMLResults(mlResult);
         resultsDiv.classList.remove('hidden');
         
+        // Scroll to results
+        resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
     } catch (error) {
-        alert('Analysis error: ' + error.message);
-        console.error(error);
+        console.error('Analysis error:', error);
+        alert('❌ Analysis Error:\n\n' + error.message + '\n\nPlease try:\n1. Refresh the page\n2. Check your internet connection\n3. Try a different image');
     } finally {
         predictButton.innerHTML = '🧠 Analyze with MobileNetV2 Deep Learning';
         predictButton.disabled = false;
